@@ -1,16 +1,56 @@
 const width = 125;
 const height = 125;
 
-let version = 13
-// bt.randIntInRange(1, 40);
+// This controls whether you are looking at a preset or a randomly generated piece
+// Randomly Generated: 0
+
+// Try Presets 1 - 5
+const PRESET = 0;
+const maxVersion = 10;
+
+let random = [
+  bt.randIntInRange(1, maxVersion), 
+  bt.randIntInRange(1, 20), 
+  12345, 
+  bt.randIntInRange(1, 8+2),
+  '#FF0000',
+  0
+];
+
+const presets = [
+    random,
+    [5, 20, 12345, 5, '#FF0000', 0], // Preset 1
+    [12, 1, 12345, 6, '#FFFFFF', 0], // Preset 2
+    [1, 0, 12345, 5, undefined, 0], // Preset 3
+    [1, 1, 12345, 8, undefined, 0], // Preset 4
+    [-1, 5, 1333, 5, '#FF0000', 0], // Preset 5
+]
+
+let strokeWidth = getPresets()[1];
+let version = getPresets()[0]
+let seed = getPresets()[2];
+
 let size = 4 * version + 17;
+const lines = [];
 
 setDocDimensions(width, height);
 
-// store final lines here
-const lines = [];
+if (PRESET != 0) bt.setRandSeed(seed);
 
-bt.setRandSeed(12345);
+function getPresets() {
+  // Version (1-40), Stroke Width, Seed, Mask, Fill, Data to Use (0-2)
+
+  if (bt.rand() < 0.05 && random[0] < 6) random[4] = undefined;
+  if (random[0] < random[1]) random[1] = bt.randIntInRange(1, random[1] / 2);
+
+  if (random[3] >= 8) random[5] = 1;
+
+  
+  if (PRESET == 0) console.log(presets[0]);
+
+  if (PRESET >= presets.length) return [-1, 0, 0, 0, '#000000'];
+  return presets[PRESET];
+}
 
 // Draw a rectangle at x, y of width w and height h
 function rect(w, h, x = 0, y = 0) {
@@ -23,15 +63,27 @@ function rect(w, h, x = 0, y = 0) {
   ]
 }
 
+
+
+function circle(r, x, y) {
+  const t = new bt.Turtle();
+  t.arc(360, r);
+  const cc = bt.bounds(t.path).lt;
+  bt.translate(t.path, [x, y], cc);
+
+  return t.path;
+}
+
 // Helper function to convert string to binary representation
 //function toBinaryArray(str) {
 //    return str.split('').map(char => char.charCodeAt(0).toStseparatorRing(2).padStart(8, '0')).join('');
 //}
+let dataArray = emptyArray(version, -1);
 function generateQRCode(
   version = 1,
   matrix
 ) {
-    const dataArray = emptyArray(version, -1);
+    dataArray = emptyArray(version, -1);
 
     // Version 1 QR Code -> size = 21
     // Version 40 QR Code -> size = 177
@@ -218,12 +270,27 @@ function generateQRCode(
       setDataModule(i, Math.round(bt.rand()))
     }
 
-    let mask = 1;
+    let mask = getPresets()[3];
     const maskedArray = maskMatrix(JSON.parse(JSON.stringify(dataArray)), mask);
+
+    applyMaskedMatrix(matrix, maskedArray);
     
-    return maskedArray;
-    return dataArray;
+    // return maskedArray;
+    // return dataArray;
     return matrix;
+}
+
+function applyMaskedMatrix(baseMatrix, topMatrix) {
+  for (let y = 0; y < baseMatrix.length; y++) {
+    for (let x = 0; x < baseMatrix[y].length; x++) {
+      let topBit = topMatrix[y][x];
+      if (topBit == -1) continue;
+
+      baseMatrix[y][x] = topBit;
+    }
+  }
+  
+  return baseMatrix;
 }
 
 function maskMatrix(matrix, mask = 0) {
@@ -231,6 +298,8 @@ function maskMatrix(matrix, mask = 0) {
     for (let x = 0; x < matrix[y].length; x++) {
       let bit = matrix[y][x];
       if (bit == -1) continue;
+
+      bit = 0
       
       matrix[y][x] = maskBit(y, x, bit, mask);
     }
@@ -293,14 +362,16 @@ function emptyArray(version, value = 0) {
 }
 
 let baseArray = randomArray(size);
-baseArray = Array.from({ length: size }, () => Array(size).fill(3));
+if (getPresets()[5] == 0) {
+  baseArray = Array.from({ length: size }, () => Array(size).fill(3));
+}
 let finalQRArray = generateQRCode(version, baseArray);
 
 // Output QR code qrArray
-console.log(
-  finalQRArray.map(row => row.map(val => val == 0 ? ' ' : val == 3 ? '⋅' : '■').join(' '))
-            .join('\n')
-           );
+// console.log(
+//   finalQRArray.map(row => row.map(val => val == 0 ? ' ' : val == 3 ? '⋅' : '■').join(' '))
+//             .join('\n')
+//            );
 
 console.log(finalQRArray.map(row => 
   row.map(val => {
@@ -334,8 +405,14 @@ for(let y = 0; y < finalQRArray.length; y++) {
     const val = finalQRArray[y][x];
     if (val == 1) {
       // Full Square
-      let a = [rect(s, s, s*x + s/2, height- s*y - s/2)];
-      lines.push(a[0]);
+      // renderSquare(x, y);
+      renderRounded(x, y);
+      continue; // Debug
+      if (dataArray[y][x] == -1) {
+        renderRounded(x, y);
+      } else {
+        renderCircle(x, y);
+      }
     } else if (val == 3) {
       // Draw Diamond
       let a = [rect(s/3, s/3, s*x + s/2, height- s*y - s/2)];
@@ -364,4 +441,52 @@ for(let y = 0; y < finalQRArray.length; y++) {
   }
 }
 
-drawLines(lines, {'fill': '#FF0000'});
+function renderRounded(x, y) {
+  let a = circle(s/2, width/size*x, height - height/size*y);
+  let r = []
+  // Down & Right
+  if (y < size - 1 && x < size && finalQRArray[y+1][x] || finalQRArray[y][x+1]) {
+    let c = [rect(s/2, s/2, s*x + 3*s/4, height- s*y - 3*s/4)];
+    lines.push(c[0])
+  }
+
+  // Down & Left
+  if (y < size - 1 && x < size && finalQRArray[y+1][x] || finalQRArray[y][x-1]) {
+    let c = [rect(s/2, s/2, s*x + 1*s/4, height- s*y - 3*s/4)];
+    lines.push(c[0])
+  }
+
+  // Up & Right
+  if (y > 0 && x < size && finalQRArray[y-1][x] || finalQRArray[y][x+1]) {
+    let c = [rect(s/2, s/2, s*x + 3*s/4, height- s*y - 1*s/4)];
+    lines.push(c[0])
+  }
+
+  // Up & Left
+  if (y > 0 && x < size && finalQRArray[y-1][x] || finalQRArray[y][x-1]) {
+    let c = [rect(s/2, s/2, s*x + 1*s/4, height- s*y - 1*s/4)];
+    lines.push(c[0])
+  }
+  
+  lines.push(a[0]);
+  // lines.push(r[0]);
+}
+
+function renderCircle(x, y) {
+  let a = circle(s/2, width/size*x, height - height/size*y);
+  lines.push(a[0]);
+}
+
+function renderSquare(x, y) {
+  let a = [rect(s, s, s*x + s/2, height- s*y - s/2)];
+  lines.push(a[0]);
+}
+
+// QR Quiet Zone
+bt.scale(lines, finalQRArray.length/(finalQRArray.length+8))
+
+drawLines(lines, {'fill': getPresets()[4], 'width': strokeWidth});
+// 'stroke': '#FFFF00'
+                 
+
+// drawLines(circle(2, width/2, height/2), {'fill': '#FF0000'})
