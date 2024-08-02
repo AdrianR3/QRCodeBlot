@@ -42,7 +42,7 @@ function generateQRCode(
     }
 
     // Function to set a dot in the matrix
-    function setBlock(x, y, value) {
+    function setBlock(x, y, value = 1) {
         if (x >= 0 && x < size && y >= 0 && y < size) {
             matrix[y][x] = value;
         }
@@ -88,24 +88,25 @@ function generateQRCode(
       // Collect all available positions in zigzag order
       for (let x = 0; x < size; x++) {
         let ax = size - x - 1;
-        if ((ax + 1)% 2 == 1) {
+        let shift = 0;
+
+        // Skip Vertical Timing Pattern
+        if (ax < 7) {
+          shift = 1
+        };
+        
+        if (ax % 4 == 0 + (shift * 3)) {
           // zigzag from bottom to top
           for (let y = size - 1; y >= 0; y--) {
-            if (matrix[y][ax] == 3) {
-                console.log(`${ax}, ${y}: ${matrix[y][ax]}`)
-                // availablePositions.push({ ax, y });
-            }
             if (matrix[y][ax] == 3) {availablePositions.push({ ax, y });}
             if (matrix[y][--ax] == 3) {availablePositions.push({ ax, y });}
             ax++;
           }
-        } else if ((ax + 1)% 2 == 2) {
+        } 
+        else 
+          if (x % 4 == 2 + shift) {
           // zigzag from top to bottom
           for (let y = 0; y < size; y++) {
-            if (matrix[y][ax] == 3) {
-                console.log(`${ax}, ${y}: ${matrix[y][ax]}`)
-            }
-
             if (matrix[y][ax] == 3) {availablePositions.push({ ax, y });}
             if (matrix[y][--ax] == 3) {availablePositions.push({ ax, y });}
             ax++;
@@ -118,18 +119,16 @@ function generateQRCode(
   
       // Check if we have enough positions
       if (targetIndex >= availablePositions.length) {
-          throw new Error("Target index exceeds the number of available modules.");
+        console.error(`Target index ${targetIndex} exceeds the number of available modules.`)
+        return;  
+        // throw new Error("Target index exceeds the number of available modules.");
       }
 
       // Set the data module at next available bit
       const { ax, y } = availablePositions[targetIndex];
-      // console.log(availablePositions)
-      // console.log(availablePositions[targetIndex])
-      // console.log(`index=${targetIndex} setBlock(${ax}, ${y}, ${dataValue})`)
       setBlock(ax, y, dataValue)
     }
 
-  
     // Finder patterns
     // (Three big rings)
     drawFinderPattern(0, 0);
@@ -169,7 +168,7 @@ function generateQRCode(
     }
 
     // Dark Module
-    setBlock(8, 4 * version + 9);
+    setBlock(8, 4 * version + 9, 0);
 
     const reservedValue = 0;
     // Reserve Format Information Area
@@ -204,9 +203,11 @@ function generateQRCode(
     }
     
     getAvailablePositions();
-    for (let i = 0; i < 293; i++) {
-      console.log(`setDataModule(${i}, 2)`)
-      setDataModule(i, 2)
+    console.log(`Available Data Bits: ${availablePositions.length}`)
+
+    // Fill Data bits
+    for (let i = 0; i < 359; i++) {
+      setDataModule(i, i+4)
     }
     
     return matrix;
@@ -227,7 +228,6 @@ function getPossibleAlignmentCoords(version) {
 }
 
 console.log(`QR Version: ${version}`)
-// console.log(getPossibleAlignmentCoords(version))
 
 function randomArray(size = 21) {
   const array = [];
@@ -252,9 +252,34 @@ baseArray = Array.from({ length: size }, () => Array(size).fill(3));
 let finalQRArray = generateQRCode(version, baseArray);
 
 // Output QR code qrArray
-console.log(finalQRArray.map(row => row.map(val => val == 0 ? ' ' : val == 3 ? '⋅' : '■').join(' '))
+console.log(
+  finalQRArray.map(row => row.map(val => val == 0 ? ' ' : val == 3 ? '⋅' : '■').join(' '))
             .join('\n')
            );
+
+console.log(finalQRArray.map(row => 
+  row.map(val => {
+      let char;
+      switch (Number(val)) {
+          case 0:
+              char = ' ';
+              break;
+          case 1:
+              char = '■';
+              break;
+          case 2:
+              char = 'x';
+              break;
+          case 3:
+              char = '⋅';
+              break;
+          default:
+              char = Number(val)-3;
+              break;
+      }
+      return char;
+  }).join(' ')
+).join('\n'));
 
 // Convert QR Code Array into rectangles for drawing
 let renderEmpty = false;
@@ -263,20 +288,31 @@ for(let y = 0; y < finalQRArray.length; y++) {
   for (let x = 0; x < finalQRArray[y].length; x++) {
     const val = finalQRArray[y][x];
     if (val == 1) {
+      // Full Square
       let a = [rect(s, s, s*x + s/2, height- s*y - s/2)];
       lines.push(a[0]);
     } else if (val == 3) {
+      // Draw Diamond
       let a = [rect(s/3, s/3, s*x + s/2, height- s*y - s/2)];
       bt.rotate(a, 45)
       lines.push(a[0]);
     } else if (val == 2) {
+      // Draw 'X'
       let a = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
       let b = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
       bt.rotate(a, 45)
       bt.rotate(b, -45)
       lines.push(a[0]);
       lines.push(b[0]);
+    } else if (val > 3) {
+      // Draw 'X'
+      let a = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
+      let b = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
+      bt.rotate(b, 90)
+      lines.push(a[0]);
+      lines.push(b[0]);
     } else if (renderEmpty) {
+      // Small Square
       let a = [rect(s/4, s/4, s*x + s/2, height- s*y - s/2)];
       lines.push(a[0]);
     }
