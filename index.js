@@ -1,8 +1,8 @@
 const width = 125;
 const height = 125;
 
-let version = 2
-//bt.randIntInRange(1, 40);
+let version = 13
+// bt.randIntInRange(1, 40);
 let size = 4 * version + 17;
 
 setDocDimensions(width, height);
@@ -10,7 +10,7 @@ setDocDimensions(width, height);
 // store final lines here
 const lines = [];
 
-// bt.setRandSeed(12345);
+bt.setRandSeed(12345);
 
 // Draw a rectangle at x, y of width w and height h
 function rect(w, h, x = 0, y = 0) {
@@ -31,6 +31,7 @@ function generateQRCode(
   version = 1,
   matrix
 ) {
+    const dataArray = emptyArray(version, -1);
 
     // Version 1 QR Code -> size = 21
     // Version 40 QR Code -> size = 177
@@ -45,6 +46,12 @@ function generateQRCode(
     function setBlock(x, y, value = 1) {
         if (x >= 0 && x < size && y >= 0 && y < size) {
             matrix[y][x] = value;
+        }
+    }
+
+    function setData(x, y, value = 1) {
+        if (x >= 0 && x < size && y >= 0 && y < size) {
+            dataArray[y][x] = value;
         }
     }
     // Draw the finder patterns
@@ -126,7 +133,7 @@ function generateQRCode(
 
       // Set the data module at next available bit
       const { ax, y } = availablePositions[targetIndex];
-      setBlock(ax, y, dataValue)
+      setData(ax, y, dataValue)
     }
 
     // Finder patterns
@@ -206,11 +213,44 @@ function generateQRCode(
     console.log(`Available Data Bits: ${availablePositions.length}`)
 
     // Fill Data bits
-    for (let i = 0; i < 359; i++) {
-      setDataModule(i, i+4)
+    for (let i = 0; i < availablePositions.length; i++) {
+      // setDataModule(i, i+4)
+      setDataModule(i, Math.round(bt.rand()))
     }
+
+    let mask = 1;
+    const maskedArray = maskMatrix(JSON.parse(JSON.stringify(dataArray)), mask);
     
+    return maskedArray;
+    return dataArray;
     return matrix;
+}
+
+function maskMatrix(matrix, mask = 0) {
+  for (let y = 0; y < matrix.length; y++) {
+    for (let x = 0; x < matrix[y].length; x++) {
+      let bit = matrix[y][x];
+      if (bit == -1) continue;
+      
+      matrix[y][x] = maskBit(y, x, bit, mask);
+    }
+  }
+  
+  return matrix;
+}
+
+function maskBit(row, col, bit, mask) {
+  switch (Number(mask)) {
+    case 0: return bit ^ ((row + col) % 2 == 0)
+    case 1: return bit ^ (row % 2 == 0);
+    case 2: return bit ^ (col % 3 == 0);
+    case 3: return bit ^ ((row + col) % 3 == 0);
+    case 4: return bit ^ ((Math.floor(row / 2) + Math.floor(col / 3)) % 2 == 0);
+    case 5: return bit ^ (row * col % 2 + row * col % 3 == 0);
+    case 6: return bit ^ (((row * col) % 2 + row * col % 3) % 2 == 0);
+    case 7: return bit ^ (((row + col) % 2 + row * col % 3) % 2 == 0);
+    default: return bit; // No Mask
+  }
 }
 
 // Big Thanks to StackOverflow
@@ -245,6 +285,11 @@ function randomArray(size = 21) {
     }
     
     return array;
+}
+
+function emptyArray(version, value = 0) {
+    let n = 4*version + 17;
+    return Array.from({ length: n }, () => Array(n).fill(value));
 }
 
 let baseArray = randomArray(size);
