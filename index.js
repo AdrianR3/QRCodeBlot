@@ -1,7 +1,8 @@
 const width = 125;
 const height = 125;
 
-let version = 1//bt.randIntInRange(1, 40);
+let version = 2
+//bt.randIntInRange(1, 40);
 let size = 4 * version + 17;
 
 setDocDimensions(width, height);
@@ -82,36 +83,50 @@ function generateQRCode(
         }
     }
 
-    function setDataModule(targetIndex, dataValue) {
-      const availablePositions = [];
-  
+    const availablePositions = [];
+    function getAvailablePositions() {
       // Collect all available positions in zigzag order
-      for (let x = size + 1; x >= 0; x-=2) {
-          if (x % 2 === 0) {
-              // Even column, zigzag from bottom to top
-              for (let y = size - 1; y >= 0; y--) {
-                  if (matrix[y][x] == 3) {
-                      availablePositions.push({ x, y });
-                  }
+      for (let x = 0; x < size; x++) {
+          let ax = size - x - 1;
+          // if ((ax + 1)% 2 == 1) {
+            // zigzag from bottom to top
+
+            // Debug
+            if (x != 0) continue;
+            for (let y = size - 1; y >= 0; y--) {
+              if (matrix[y][ax] == 3) {
+                  console.log(`${ax}, ${y}: ${matrix[y][ax]}`)
+                  availablePositions.push({ ax, y });
               }
-          } else {
-              // Odd column, zigzag from top to bottom
-              for (let y = 0; y < size; y++) {
-                  if (matrix[y][x] === 3) {
-                      availablePositions.push({ x, y });
-                  }
-              }
-          }
+            }
+          // } else {
+            
+          // }
+            
+          // else {
+          //     // zigzag from top to bottom
+          //     for (let y = 0; y < size; y++) {
+          //         if (matrix[y][x] === 3) {
+          //             availablePositions.push({ x, y });
+          //         }
+          //     }
+          // }
       }
+    }
+
+    function setDataModule(targetIndex, dataValue) {
   
       // Check if we have enough positions
       if (targetIndex >= availablePositions.length) {
           throw new Error("Target index exceeds the number of available modules.");
       }
 
-      // Set the data module at the target index
-      const { x, y } = availablePositions[targetIndex];
-      setBlock(x, y, dataValue)
+      // Set the data module at next available bit
+      const { ax, y } = availablePositions[0];
+      // console.log(availablePositions)
+      // console.log(availablePositions[targetIndex])
+      // console.log(`index=${targetIndex} setBlock(${ax}, ${y}, ${dataValue})`)
+      setBlock(ax, y, dataValue)
     }
 
   
@@ -160,13 +175,13 @@ function generateQRCode(
     for (let x = 0; x < size; x++) {
       if (!(x < 9 || x > size - 9)) continue;
       if (matrix[8][x] != 3) continue;
-      setBlock(x, 8, 1)
+      setBlock(x, 8, 2)
     }
 
     for (let y = 0; y < size; y++) {
       if (!(y < 9 || y > size - 9)) continue;
       if (matrix[y][8] != 3) continue;
-      setBlock(8, y, 1)
+      setBlock(8, y, 2)
     }
 
   
@@ -186,12 +201,13 @@ function generateQRCode(
         }
       }
     }
-
+    
+    getAvailablePositions();
     for (let i = 0; i < 2; i++) {
+      console.log(`setDataModule(${i}, 1)`)
       setDataModule(i, 2)
     }
     
-
     return matrix;
 }
 
@@ -209,8 +225,8 @@ function getPossibleAlignmentCoords(version) {
   );
 }
 
-console.log(`Version: ${version}`)
-console.log(getPossibleAlignmentCoords(version))
+console.log(`QR Version: ${version}`)
+// console.log(getPossibleAlignmentCoords(version))
 
 function randomArray(size = 21) {
   const array = [];
