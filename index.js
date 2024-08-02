@@ -1,7 +1,7 @@
 const width = 125;
 const height = 125;
 
-let version = 7;
+let version = 1//bt.randIntInRange(1, 40);
 let size = 4 * version + 17;
 
 setDocDimensions(width, height);
@@ -43,7 +43,7 @@ function generateQRCode(
     // Function to set a dot in the matrix
     function setBlock(x, y, value) {
         if (x >= 0 && x < size && y >= 0 && y < size) {
-            matrix[x][y] = value;
+            matrix[y][x] = value;
         }
     }
     // Draw the finder patterns
@@ -82,6 +82,38 @@ function generateQRCode(
         }
     }
 
+    function setDataModule(targetIndex, dataValue) {
+      const availablePositions = [];
+  
+      // Collect all available positions in zigzag order
+      for (let x = size + 1; x >= 0; x-=2) {
+          if (x % 2 === 0) {
+              // Even column, zigzag from bottom to top
+              for (let y = size - 1; y >= 0; y--) {
+                  if (matrix[y][x] == 3) {
+                      availablePositions.push({ x, y });
+                  }
+              }
+          } else {
+              // Odd column, zigzag from top to bottom
+              for (let y = 0; y < size; y++) {
+                  if (matrix[y][x] === 3) {
+                      availablePositions.push({ x, y });
+                  }
+              }
+          }
+      }
+  
+      // Check if we have enough positions
+      if (targetIndex >= availablePositions.length) {
+          throw new Error("Target index exceeds the number of available modules.");
+      }
+
+      // Set the data module at the target index
+      const { x, y } = availablePositions[targetIndex];
+      setBlock(x, y, dataValue)
+    }
+
   
     // Finder patterns
     // (Three big rings)
@@ -103,10 +135,10 @@ function generateQRCode(
         for (let cxi = 0; cxi < coords.length; cxi++) {
           let x = coords[cxi];
           let y = coords[cyi];
-          console.log(`${x}, ${y}, ${matrix[y][x]}`)
-          if (matrix[y][x] == 3) {
-            alignmentPattern(coords[cxi], coords[cyi])
-          }
+          
+          if (matrix[y][x] == 1) continue;
+          
+          alignmentPattern(x, y);
         }
       }
     }
@@ -120,6 +152,45 @@ function generateQRCode(
         // Horizontal Timing Pattern
         setBlock(6, i, !(i % 2));
     }
+
+    // Dark Module
+    setBlock(8, 4 * version + 9);
+
+    // Reserve Format Information Area
+    for (let x = 0; x < size; x++) {
+      if (!(x < 9 || x > size - 9)) continue;
+      if (matrix[8][x] != 3) continue;
+      setBlock(x, 8, 1)
+    }
+
+    for (let y = 0; y < size; y++) {
+      if (!(y < 9 || y > size - 9)) continue;
+      if (matrix[y][8] != 3) continue;
+      setBlock(8, y, 1)
+    }
+
+  
+    // Reserve Version Information Area
+    if (version >= 7) {
+      // Top Right
+      for (let x = 0; x < 6; x++) {
+        for (let y = 0; y < 3; y++) {
+          setBlock(x, y + size - 7 - 4, 0)
+        }
+      }
+      
+      // Bottom Left
+      for (let x = 0; x < 3; x++) {
+        for (let y = 0; y < 6; y++) {
+          setBlock(x + size - 7 - 4, y, 0)
+        }
+      }
+    }
+
+    for (let i = 0; i < 2; i++) {
+      setDataModule(i, 2)
+    }
+    
 
     return matrix;
 }
@@ -181,6 +252,13 @@ for(let y = 0; y < finalQRArray.length; y++) {
       let a = [rect(s/3, s/3, s*x + s/2, height- s*y - s/2)];
       bt.rotate(a, 45)
       lines.push(a[0]);
+    } else if (val == 2) {
+      let a = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
+      let b = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
+      bt.rotate(a, 45)
+      bt.rotate(b, -45)
+      lines.push(a[0]);
+      lines.push(b[0]);
     } else if (renderEmpty) {
       let a = [rect(s/4, s/4, s*x + s/2, height- s*y - s/2)];
       lines.push(a[0]);
