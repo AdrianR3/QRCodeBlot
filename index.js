@@ -5,11 +5,31 @@ const height = 125;
 // Randomly Generated: 0
 
 // Try Presets 1 - 5
-const PRESET = 0;
-const maxVersion = 10;
+// Preset 6 will encode the data below
+const PRESET = 6;
+const maxRandomVersion = 10;
+
+// QR Code Generation (PRESET = 6)
+const textToEncode = "HELLO WORLD";
+// const textToEncode = "Hello, world!";
+
+// The Following Parameters MUST be set correctly with respect each other and textToEncode
+const errorCorrectionLevel = "L"; // L (7%), M (15%), Q (25%), H (30%)
+const encodeVersion = 1; // https://www.thonky.com/qr-code-tutorial/character-capacities
+
+// Only Alphanumeric mode is supported
+const modeIndicator = 0b0010; // Numeric Mode = 0b0001, Alphanumeric Mode = 0b0010, etc.
+const charCountIndicator = Number(textToEncode.length)
+  .toString(2)
+  .padStart(encodeVersion <= 9 ? 9 : (encodeVersion <= 26 ? 11 : 13), 0)
+
+const stringIndicatorBinary = modeIndicator.toString(2).padStart(4, 0) + charCountIndicator.toString(2);
+
+const encoded = encodeAlphanumeric(textToEncode);
+console.log(`encoded: ${encoded}`)
 
 let random = [
-  bt.randIntInRange(1, maxVersion), 
+  bt.randIntInRange(1, maxRandomVersion), 
   bt.randIntInRange(1, 20), 
   12345, 
   bt.randIntInRange(1, 8+2),
@@ -26,7 +46,7 @@ const presets = [
     [1, 0, 12345, 5, undefined, 0, 0], // Preset 3
     [7, 6, 6342, 3, '#3EFFA3', 1, 0], // Preset 4
     [-1, 5, 1333, 5, '#3477eb', 0, 0], // Preset 5
-    [7, 0, 12345, 3, '#3477eb', 2, -1], // Preset 6
+    [encodeVersion, 0, 12345, 0, '#3477eb', 2, -1], // Preset 6
 ]
 
 let strokeWidth = getPresets()[1];
@@ -97,13 +117,15 @@ function generateQRCode(
       matrix = Array.from({ length: size }, () => Array(size).fill(0));
     }
 
-    // Function to set a dot in the matrix
+    // Function to set a fixed module in the matrix
     function setBlock(x, y, value = 1) {
         if (x >= 0 && x < size && y >= 0 && y < size) {
             matrix[y][x] = value;
+            dataArray[y][x] = -2;
         }
     }
 
+    // Set a data module in the matrix
     function setData(x, y, value = 1) {
         if (x >= 0 && x < size && y >= 0 && y < size) {
             dataArray[y][x] = value;
@@ -189,7 +211,7 @@ function generateQRCode(
       // Set the data module at next available bit
       const { ax, y } = availablePositions[targetIndex];
       setData(ax, y, dataValue);
-      setBlock(ax, y, dataValue);
+      // setBlock(ax, y, dataValue);
     }
 
     // Finder patterns
@@ -223,30 +245,30 @@ function generateQRCode(
     // Timing Patterns
     // (Alternating black and white stripes)
     for (let i = 7; i < size - 7; i++) {
-        // Vertical Timing Pattern
-        setBlock(i, 6, !(i % 2));
+      // Horizontal Timing Pattern  
+      setBlock(i, 6, !(i % 2));
 
-        // Horizontal Timing Pattern
-        setBlock(6, i, !(i % 2));
+      // Vertical Timing Pattern
+      setBlock(6, i, !(i % 2));
     }
 
-    // Dark Module
-    setBlock(8, 4 * version + 9, 0);
 
     const reservedValue = 0;
     // Reserve Format Information Area
     for (let x = 0; x < size; x++) {
       if (!(x < 9 || x > size - 9)) continue;
-      // if (matrix[8][x] != 3) continue;
+      if (matrix[8][x] != 3) continue;
       setBlock(x, 8, reservedValue)
     }
 
     for (let y = 0; y < size; y++) {
       if (!(y < 9 || y > size - 9)) continue;
-      // if (matrix[y][8] != 3) continue;
+      if (matrix[y][8] != 3) continue;
       setBlock(8, y, reservedValue)
     }
 
+    // Dark Module
+    setBlock(8, 4 * version + 9, 0);
   
     // Reserve Version Information Area
     if (version >= 7) {
@@ -285,13 +307,39 @@ function generateQRCode(
     return matrix;
 }
 
-function applyMaskedMatrix(baseMatrix, topMatrix) {
+function encodeAlphanumeric(dataToEncode) {
+  let output = "";
+  for (let i = 0; i < dataToEncode.length; i+=2) {
+    let a = convertToAlphanumericNum(dataToEncode.charAt(i));
+    let b = convertToAlphanumericNum(dataToEncode.charAt(i+1));
+
+    // pair is dataToEncode.substring(i, i + 2)
+
+    console.log(`n: ${a * 45 + b}`)
+
+    if (b == 0) {
+      console.log(`No Pair: ${dataToEncode.substring(i, i + 2)}`);
+    }
+    
+  }
+}
+
+function convertToAlphanumericNum(char) {
+    const alphanumericChars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
+    char = char.toUpperCase();
+
+    const index = alphanumericChars.indexOf(char);
+    return index !== -1 ? index : null;
+}
+
+function applyMaskedMatrix(baseMatrix, maskedData) {
   for (let y = 0; y < baseMatrix.length; y++) {
     for (let x = 0; x < baseMatrix[y].length; x++) {
-      let topBit = topMatrix[y][x];
-      if (topBit == -1) continue;
+      let maskedBit = maskedData[y][x];
+      if (maskedBit == -1) continue;
+      if (maskedBit == -2) continue;
 
-      baseMatrix[y][x] = topBit;
+      baseMatrix[y][x] = maskedBit;
     }
   }
   
@@ -303,6 +351,7 @@ function maskMatrix(matrix, mask = 0) {
     for (let x = 0; x < matrix[y].length; x++) {
       let bit = matrix[y][x];
       if (bit == -1) continue;
+      if (bit == -2) continue;
 
       bit = 0
       
@@ -448,7 +497,7 @@ for(let y = 0; y < finalQRArray.length; y++) {
           continue;
       }
       
-      if (dataVal == -1) {
+      if (dataVal == -2 && val == 1) {
         renderSquare(x, y);
         continue;
       }
