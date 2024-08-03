@@ -13,17 +13,20 @@ let random = [
   bt.randIntInRange(1, 20), 
   12345, 
   bt.randIntInRange(1, 8+2),
-  '#FF0000',
-  0
+  '#fc9003',
+  0,
+  1
 ];
 
+// Version (1-40), Stroke Width, Seed, Mask, Fill, Data to Use (0-2), Shapes
 const presets = [
     random,
-    [5, 20, 12345, 5, '#FF0000', 0], // Preset 1
-    [12, 1, 12345, 6, '#FFFFFF', 0], // Preset 2
-    [1, 0, 12345, 5, undefined, 0], // Preset 3
-    [1, 1, 12345, 8, undefined, 0], // Preset 4
-    [-1, 5, 1333, 5, '#FF0000', 0], // Preset 5
+    [5, 20, 12345, 5, '#FF0000', 0, 0], // Preset 1
+    [12, 1, 12345, 6, '#FFFFFF', 0, 0], // Preset 2
+    [1, 0, 12345, 5, undefined, 0, 0], // Preset 3
+    [7, 6, 6342, 3, '#3EFFA3', 1, 0], // Preset 4
+    [-1, 5, 1333, 5, '#3477eb', 0, 0], // Preset 5
+    [7, 0, 12345, 3, '#3477eb', 2, -1], // Preset 6
 ]
 
 let strokeWidth = getPresets()[1];
@@ -35,18 +38,19 @@ const lines = [];
 
 setDocDimensions(width, height);
 
-if (PRESET != 0) bt.setRandSeed(seed);
+if (PRESET == 0) { 
+  console.log(presets[0]);
+} else {
+  bt.setRandSeed(seed);
+}
+
+if (bt.rand() < 0.20 && random[0] < 6) {random[4] = undefined}
 
 function getPresets() {
-  // Version (1-40), Stroke Width, Seed, Mask, Fill, Data to Use (0-2)
-
-  if (bt.rand() < 0.05 && random[0] < 6) random[4] = undefined;
+  // Version (1-40), Stroke Width, Seed, Mask, Fill, Data to Use (0-2), Shapes
   if (random[0] < random[1]) random[1] = bt.randIntInRange(1, random[1] / 2);
 
   if (random[3] >= 8) random[5] = 1;
-
-  
-  if (PRESET == 0) console.log(presets[0]);
 
   if (PRESET >= presets.length) return [-1, 0, 0, 0, '#000000'];
   return presets[PRESET];
@@ -84,7 +88,6 @@ function generateQRCode(
   matrix
 ) {
     dataArray = emptyArray(version, -1);
-
     // Version 1 QR Code -> size = 21
     // Version 40 QR Code -> size = 177
     let size = 4 * version + 17;
@@ -185,7 +188,8 @@ function generateQRCode(
 
       // Set the data module at next available bit
       const { ax, y } = availablePositions[targetIndex];
-      setData(ax, y, dataValue)
+      setData(ax, y, dataValue);
+      setBlock(ax, y, dataValue);
     }
 
     // Finder patterns
@@ -233,13 +237,13 @@ function generateQRCode(
     // Reserve Format Information Area
     for (let x = 0; x < size; x++) {
       if (!(x < 9 || x > size - 9)) continue;
-      if (matrix[8][x] != 3) continue;
+      // if (matrix[8][x] != 3) continue;
       setBlock(x, 8, reservedValue)
     }
 
     for (let y = 0; y < size; y++) {
       if (!(y < 9 || y > size - 9)) continue;
-      if (matrix[y][8] != 3) continue;
+      // if (matrix[y][8] != 3) continue;
       setBlock(8, y, reservedValue)
     }
 
@@ -267,13 +271,14 @@ function generateQRCode(
     // Fill Data bits
     for (let i = 0; i < availablePositions.length; i++) {
       // setDataModule(i, i+4)
-      setDataModule(i, Math.round(bt.rand()))
+      // Todo: set data properly
+      setDataModule(i, 1)//Math.round(bt.rand()))
     }
 
-    let mask = getPresets()[3];
-    const maskedArray = maskMatrix(JSON.parse(JSON.stringify(dataArray)), mask);
-
-    applyMaskedMatrix(matrix, maskedArray);
+    let maskId = getPresets()[3];
+    const maskedData = maskMatrix(JSON.parse(JSON.stringify(dataArray)), maskId);
+    
+    applyMaskedMatrix(matrix, maskedData);
     
     // return maskedArray;
     // return dataArray;
@@ -361,10 +366,29 @@ function emptyArray(version, value = 0) {
     return Array.from({ length: n }, () => Array(n).fill(value));
 }
 
+// Data Loading
 let baseArray = randomArray(size);
-if (getPresets()[5] == 0) {
-  baseArray = Array.from({ length: size }, () => Array(size).fill(3));
+switch (Number(getPresets()[5])) {
+  case 0:
+    // No Data
+    baseArray = Array.from({ length: size }, () => Array(size).fill(3));
+    break;
+  case 1:
+    // Random Data
+    baseArray = randomArray(size);
+    break;
+  case 2:
+    // String Data
+    // Encode string data
+
+    // Empty Array for now
+    baseArray = Array.from({ length: size }, () => Array(size).fill(3));
+    break;
+  // default:
+    // baseArray = emptyArray(version);
+    // break;
 }
+
 let finalQRArray = generateQRCode(version, baseArray);
 
 // Output QR code qrArray
@@ -373,29 +397,36 @@ let finalQRArray = generateQRCode(version, baseArray);
 //             .join('\n')
 //            );
 
-console.log(finalQRArray.map(row => 
-  row.map(val => {
+// console.log(QR2Text(finalQRArray));
+
+function QR2Text(QRArray) {
+  return QRArray.map(row => 
+    row.map(val => {
       let char;
       switch (Number(val)) {
-          case 0:
-              char = ' ';
-              break;
-          case 1:
-              char = '■';
-              break;
-          case 2:
-              char = 'x';
-              break;
-          case 3:
-              char = '⋅';
-              break;
-          default:
-              char = Number(val)-3;
-              break;
+        case -1:
+          char = 'o';
+          break;
+        case 0:
+          char = ' ';
+          break;
+        case 1:
+          char = '■';
+          break;
+        case 2:
+          char = 'x';
+          break;
+        case 3:
+          char = '⋅';
+          break;
+        default:
+          char = Number(val)-3;
+          break;
       }
       return char;
-  }).join(' ')
-).join('\n'));
+    }).join(' ')
+  ).join('\n');
+}
 
 // Convert QR Code Array into rectangles for drawing
 let renderEmpty = false;
@@ -403,42 +434,98 @@ const s = height/finalQRArray.length;
 for(let y = 0; y < finalQRArray.length; y++) {
   for (let x = 0; x < finalQRArray[y].length; x++) {
     const val = finalQRArray[y][x];
+    const dataVal = dataArray[y][x];
+    
     if (val == 1) {
       // Full Square
       // renderSquare(x, y);
-      renderRounded(x, y);
-      continue; // Debug
-      if (dataArray[y][x] == -1) {
-        renderRounded(x, y);
+      switch (Number(getPresets()[6])) {
+        case 0:
+          renderRounded(x, y)
+          continue;
+        case -1:
+          renderSquare(x, y)
+          continue;
+      }
+      
+      if (dataVal == -1) {
+        renderSquare(x, y);
+        continue;
+      }
+
+      if (bt.rand() < 0.15) {
+        switch (Number(bt.randIntInRange(1, 4))) {
+          case 1:
+            renderXMark(x, y);
+            break;
+          case 2:
+            renderPlusSign(x, y);
+            break;
+          case 3:
+            renderBox(x, y);
+            break;
+          case 4:
+            renderAsterisk(x, y)
+            break;
+        }
       } else {
-        renderCircle(x, y);
+        renderRounded(x, y);
       }
     } else if (val == 3) {
       // Draw Diamond
-      let a = [rect(s/3, s/3, s*x + s/2, height- s*y - s/2)];
-      bt.rotate(a, 45)
-      lines.push(a[0]);
+      renderDiamond(x, y)
     } else if (val == 2) {
       // Draw 'X'
-      let a = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
-      let b = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
-      bt.rotate(a, 45)
-      bt.rotate(b, -45)
-      lines.push(a[0]);
-      lines.push(b[0]);
+      renderXMark(x, y)
     } else if (val > 3) {
       // Draw 'X'
-      let a = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
-      let b = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
-      bt.rotate(b, 90)
-      lines.push(a[0]);
-      lines.push(b[0]);
+      renderXMark(x, y)
     } else if (renderEmpty) {
       // Small Square
       let a = [rect(s/4, s/4, s*x + s/2, height- s*y - s/2)];
       lines.push(a[0]);
     }
   }
+}
+
+function renderXMark(x, y) {
+  let a = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
+  let b = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
+  bt.rotate(a, 45)
+  bt.rotate(b, -45)
+  lines.push(a[0]);
+  lines.push(b[0]);
+}
+
+function renderBox(x, y) {
+  let a = [rect(s, s, s*x + s/2, height- s*y - s/2)];
+  bt.scale(a, 0.75)
+  lines.push(a[0]);
+}
+
+function renderPlusSign(x, y) {
+  let a = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
+  let b = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
+  bt.rotate(a, 90)
+  lines.push(a[0]);
+  lines.push(b[0]);
+}
+
+function renderAsterisk(x, y) {
+  let a = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
+  let b = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
+  let c = [rect(s/4, s, s*x + s/2, height- s*y - s/2)];
+  bt.rotate(b, 60)
+  bt.rotate(c, -60)
+  lines.push(a[0]);
+  lines.push(b[0]);
+  lines.push(c[0]);
+}
+
+function renderDiamond(x, y) {
+  let a = [rect(s/3, s/3, s*x + s/2, height- s*y - s/2)];
+  bt.rotate(a, 45)
+  lines.push(a[0]);
 }
 
 function renderRounded(x, y) {
