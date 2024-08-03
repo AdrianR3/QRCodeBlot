@@ -32,6 +32,43 @@ console.log(`binaryDataString: ${binaryDataString}`)
 
 // TODO: Reed-Solomon Error Correction
 
+// Example 2 Codeword Polynomial:
+// a^0*x^2 + a^25*x^1 + a^1*x^0
+
+// To obtain the generator polynomial:
+
+// Decide which QR code is being used
+
+// Get number of Error Correction codewords per block from
+// https://www.thonky.com/qr-code-tutorial/error-correction-table
+
+// then obtain the generator polynomial for said number of EC codewords
+// https://www.thonky.com/qr-code-tutorial/generator-polynomial-tool
+
+// "HELLO WORLD" 1-M codewords:
+function generateEC() {
+  let helloCodewords = [
+    0b00100000, 0b01011011, 
+    0b00001011, 0b01111000, 
+    0b11010001, 0b01110010, 
+    0b11011100, 0b01001101, 
+    0b01000011, 0b01000000, 
+    0b11101100, 0b00010001, 
+    0b11101100, 0b00010001, 
+    0b11101100, 0b00010001
+  ]
+  
+  for (let i = 0; i < helloCodewords.length; i++) {
+    helloCodewords[i] = helloCodewords[i].toString(10)
+  }
+
+  // Note to self: Seriously reconsider the projects you take on- this makes no sense whatsoever
+
+}
+generateEC()
+
+
+
 function getRawDataString() {
   // Concatenate Indicators and Encoded Data
   let dataString = modeIndicator.toString(2).padStart(4, 0) + charCountIndicator.toString(2) + encoded;
