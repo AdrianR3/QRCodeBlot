@@ -5,7 +5,7 @@ const height = 125;
 // Randomly Generated: 0
 
 // Try Presets 1 - 5
-// Preset 6 will encode the data below
+// Preset 6 will encode the 'textToEncode' string below
 const PRESET = 6;
 const maxRandomVersion = 10;
 
@@ -14,8 +14,9 @@ const textToEncode = "HELLO WORLD";
 // const textToEncode = "Hello, world!";
 
 // The Following Parameters MUST be set correctly with respect each other and textToEncode
-const errorCorrectionLevel = "L"; // L (7%), M (15%), Q (25%), H (30%)
+const errorCorrectionLevel = "Q"; // L (7%), M (15%), Q (25%), H (30%)
 const encodeVersion = 1; // https://www.thonky.com/qr-code-tutorial/character-capacities
+const requiredBits = 13 * 8; // https://www.thonky.com/qr-code-tutorial/error-correction-table
 
 // Only Alphanumeric mode is supported
 const modeIndicator = 0b0010; // Numeric Mode = 0b0001, Alphanumeric Mode = 0b0010, etc.
@@ -23,10 +24,31 @@ const charCountIndicator = Number(textToEncode.length)
   .toString(2)
   .padStart(encodeVersion <= 9 ? 9 : (encodeVersion <= 26 ? 11 : 13), 0)
 
-const stringIndicatorBinary = modeIndicator.toString(2).padStart(4, 0) + charCountIndicator.toString(2);
-
 const encoded = encodeAlphanumeric(textToEncode);
-console.log(`encoded: ${encoded}`)
+
+let binaryDataString = getRawDataString();
+
+console.log(`binaryDataString: ${binaryDataString}`)
+
+// TODO: Reed-Solomon Error Correction
+
+function getRawDataString() {
+  // Concatenate Indicators and Encoded Data
+  let dataString = modeIndicator.toString(2).padStart(4, 0) + charCountIndicator.toString(2) + encoded;
+
+  // Add Terminator Bits
+  dataString = dataString.padEnd(Math.min(requiredBits, dataString.length + 4), 0)
+
+  // Pad string with zeros so length is multiple of 8
+  dataString = dataString + '0'.repeat((8 - dataString.length % 8) % 8);
+
+  if (dataString.length < requiredBits) {
+    // Data String is still to short to fill QR Code
+    dataString = dataString.padEnd(requiredBits, "1110110000010001")
+  }
+  
+  return dataString;
+}
 
 let random = [
   bt.randIntInRange(1, maxRandomVersion), 
@@ -312,16 +334,22 @@ function encodeAlphanumeric(dataToEncode) {
   for (let i = 0; i < dataToEncode.length; i+=2) {
     let a = convertToAlphanumericNum(dataToEncode.charAt(i));
     let b = convertToAlphanumericNum(dataToEncode.charAt(i+1));
-
-    // pair is dataToEncode.substring(i, i + 2)
-
-    console.log(`n: ${a * 45 + b}`)
-
-    if (b == 0) {
-      console.log(`No Pair: ${dataToEncode.substring(i, i + 2)}`);
-    }
     
+    let dataBlock;
+    if (b == 0) {
+      // Single Character
+      dataBlock = Number(a).toString(2).padStart(6, 0)
+    } else {
+      // Character pair
+      let n = (a * 45) + b
+      dataBlock = Number(n).toString(2).padStart(11, 0)
+      // pair is dataToEncode.substring(i, i + 2)
+    }
+
+    output += dataBlock;
   }
+
+  return output;
 }
 
 function convertToAlphanumericNum(char) {
