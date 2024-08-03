@@ -62,12 +62,71 @@ function generateEC() {
     helloCodewords[i] = helloCodewords[i].toString(10)
   }
 
-  // Note to self: Seriously reconsider the projects you take on- this makes no sense whatsoever
+  
 
 }
 generateEC()
 
+const log = new Uint8Array(256);
+const exp = new Uint8Array(256);
 
+// https://en.wikiversity.org/wiki/Reed%E2%80%93Solomon_codes_for_coders#Multiplication
+function multiply(a, b) {
+  return a && 
+          b ? 
+            log[(log[a] + log[b]) % 255] : 0;
+}
+
+function divide(a, b) {
+  return exp[(log[a] + log[b] * 254) % 255];
+}
+
+// Big Thanks to maxart2501 for the help
+// https://dev.to/maxart2501/let-s-develop-a-qr-code-generator-part-iii-error-correction-1kbm
+function polyMul(poly1, poly2) {
+  const coefficients = new Uint8Array(poly1.length + poly2.length - 1);
+
+  for (let i = 0; i < coefficients.length; i++) {
+    let coefficient = 0;
+    
+    for (let p1index = 0; p1index <= i; p1index++) {
+      const p2index = i - p1index;
+      coefficient = coefficient ^ multiply(poly1[p1index], poly2[p2index]);
+    }
+    
+    coefficients[i] = coefficient;
+  }
+  return coefficients;
+}
+
+function polyRemainder(dividend, divisor) {
+  const quotientLength = dividend.length - divisor.length + 1;
+
+  let rest = new Uint8Array(dividend);
+  for (let count = 0; count < quotientLength; count++) {
+
+    if (rest[0]) {
+      const factor = divide(rest[0], divisor[0]);
+      const subtr = new Uint8Array(rest.length);
+      subtr.set(polyMul(divisor, [factor]), 0);
+      rest = rest.map((value, index) => value ^ subtr[index]).slice(1);
+    } else {
+      rest = rest.slice(1);
+    }
+  }
+  return rest;
+}
+
+// Not Working Yet.
+console.log(getGeneratorPoly(16))
+
+function getGeneratorPoly(degree) {
+  let lastPoly = new Uint8Array([1]);
+  for (let index = 0; index < degree; index++) {
+    lastPoly = polyMul(lastPoly, new Uint8Array([1, exp[index]]));
+  }
+  return lastPoly;
+}
 
 function getRawDataString() {
   // Concatenate Indicators and Encoded Data
