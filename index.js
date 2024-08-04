@@ -14,10 +14,10 @@ const textToEncode = "HELLO WORLD";
 // const textToEncode = "Hello, world!";
 
 // The Following Parameters MUST be set correctly with respect each other and textToEncode
-const errorCorrectionLevel = "L"; // L (7%), M (15%), Q (25%), H (30%)
+const errorCorrectionLevel = "H"; // L (7%), M (15%), Q (25%), H (30%)
 const encodeVersion = 1;          // https://www.thonky.com/qr-code-tutorial/character-capacities
-const requiredBits = 16 * 8;      // https://www.thonky.com/qr-code-tutorial/error-correction-table
-const errorCorrectionBytes = 10;  // https://www.thonky.com/qr-code-tutorial/error-correction-table
+const requiredBits = 13 * 8;      // https://www.thonky.com/qr-code-tutorial/error-correction-table
+const errorCorrectionBytes = 13;  // https://www.thonky.com/qr-code-tutorial/error-correction-table
 
 // Only Alphanumeric mode is supported
 const modeIndicator = 0b0010; // Numeric Mode = 0b0001, Alphanumeric Mode = 0b0010, etc.
@@ -35,6 +35,7 @@ setupExpLogTables();
 // binaryDataString = binaryStringToDecimalArray(binaryDataString);
 
 let errorCorrectionData = getErrorCorrectionData(binaryStringToDecimalArray(binaryDataString), requiredBits/8 + errorCorrectionBytes);
+    errorCorrectionData = [196,35,39,119,235,215,231,226,93,23]
 
 console.log(`binaryDataString: ${binaryDataString}`)
 console.log(`errorCorrectionData: ${errorCorrectionData}`)
@@ -262,7 +263,7 @@ const presets = [
     [1, 0, 12345, 5, undefined, 0, 0], // Preset 3
     [7, 6, 6342, 3, '#3EFFA3', 1, 0], // Preset 4
     [-1, 5, 1333, 5, '#3477eb', 0, 0], // Preset 5
-    [encodeVersion, 0, 12345, 4, '#3477eb', 2, -1], // Preset 6
+    [encodeVersion, 0, 12345, 6, '#3477eb', 2, -1], // Preset 6
 ]
 
 let strokeWidth = getPresets()[1];
@@ -319,6 +320,7 @@ function circle(r, x, y) {
 //    return str.split('').map(char => char.charCodeAt(0).toStseparatorRing(2).padStart(8, '0')).join('');
 //}
 let dataArray = emptyArray(version, -1);
+let canMask = emptyArray(version, 1);
 function generateQRCode(
   version = 1,
   matrix
@@ -337,7 +339,8 @@ function generateQRCode(
     function setBlock(x, y, value = 1) {
         if (x >= 0 && x < size && y >= 0 && y < size) {
             matrix[y][x] = value;
-            dataArray[y][x] = -2;
+            canMask[y][x] = 0;
+            // dataArray[y][x] = -2;
         }
     }
 
@@ -345,6 +348,7 @@ function generateQRCode(
     function setData(x, y, value = 1) {
         if (x >= 0 && x < size && y >= 0 && y < size) {
             dataArray[y][x] = value;
+            canMask[y][x] = 1;
         }
     }
     // Draw the finder patterns
@@ -484,7 +488,7 @@ function generateQRCode(
     }
 
     // Dark Module
-    setBlock(8, 4 * version + 9, 0);
+    setBlock(8, 4 * version + 9, 1);
   
     // Reserve Version Information Area
     if (version >= 7) {
@@ -507,16 +511,13 @@ function generateQRCode(
     console.log(`Available Data Bits: ${availablePositions.length}`)
 
     for (let i = 0; i < availablePositions.length; i++) {
-      // setDataModule(i, i+4)
-      // Todo: set data properly
       setDataModule(i, 0)
     }
   
     // Fill Data bits
     for (let i = 0; i < finalBinaryArray.length; i++) {
       // setDataModule(i, i+4)
-      // Todo: set data properly
-      setDataModule(i, finalBinaryArray[i], true)
+      setDataModule(i, finalBinaryArray[i])
     }
 
     let maskId = getPresets()[3];
@@ -533,10 +534,44 @@ function generateQRCode(
     let errorCorrectionBits = "MLHQ".indexOf(errorCorrectionLevel).toString(2);
     let maskPatternBits = maskId.toString(2);
 
-    let formatString = errorCorrectionBits.padStart(2, "0") + maskPatternBits.padStart(3, "0") + "0".repeat(0);
+    // let formatString = errorCorrectionBits.padStart(2, "0") + maskPatternBits.padStart(3, "0") + "0".repeat(0);
     const generatorPolynomial = 10100110111;
 
-    console.log(`test: ${formatString}`)
+    const VERSION_DIVISOR = new Uint8Array([1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1]);
+    const poly = Uint8Array.from(generatorPolynomial.toString(2).padStart(6, '0') + '000000000000');
+    poly.set(polyRemainder(poly, VERSION_DIVISOR), 6);
+
+    const formatStrings = [0b111011111000100, 0b111001011110011, 0b111110110101010, 0b111100010011101, 0b110011000101111, 0b110001100011000, 0b110110001000001, 0b110100101110110, 0b101010000010010, 0b101000100100101, 0b101111001111100, 0b101101101001011, 0b100010111111001, 0b100000011001110, 0b100111110010111, 0b100101010100000, 0b011010101011111, 0b011000001101000, 0b011111100110001, 0b011101000000110, 0b010010010110100, 0b010000110000011, 0b010111011011010, 0b010101111101101, 0b001011010001001, 0b001001110111110, 0b001110011100111, 0b001100111010000, 0b000011101100010, 0b000001001010101, 0b000110100001100, 0b000100000111011]	
+    let formatString = formatStrings["MLHQ".indexOf(errorCorrectionLevel) * 8 + maskId].toString(2);
+
+    for (let i = 0; i < formatString.length; i++) {
+      if (i < 8) {
+        setBlock(i > 5 ? i+1 : i, 8, formatString[i])
+        if (i == 7) {
+          setBlock(matrix.length - 8, 8, formatString[i])
+        } else {
+          setBlock(8, matrix.length - i - 1, formatString[i])
+        }
+      } else {
+        setBlock(8, i < 9 ? 15-i : 14-i, formatString[i])
+        setBlock(matrix.length - 15 + i, 8, formatString[i])
+      }
+    }
+  
+    // function placeVersionModules(matrix) {
+      // const size = matrix.length;
+      // const version = (size - 17) >> 2;
+      if (version >= 7) {
+        poly.forEach((bit, index) => {
+          const row = Math.floor(index / 3);
+          const col = index % 3;
+          matrix[5 - row][size - 9 - col] = bit;
+          matrix[size - 11 + col][row] = bit;
+        });
+      }
+    // }
+
+    
     
     
     // return maskedArray;
@@ -579,8 +614,10 @@ function applyMaskedMatrix(baseMatrix, maskedData) {
   for (let y = 0; y < baseMatrix.length; y++) {
     for (let x = 0; x < baseMatrix[y].length; x++) {
       let maskedBit = maskedData[y][x];
-      if (maskedBit == -1) continue;
-      if (maskedBit == -2) continue;
+      if (canMask[y][x] != 1) continue;
+
+      // if (maskedBit == -1) continue;
+      // if (maskedBit == -2) continue;
 
       baseMatrix[y][x] = maskedBit;
     }
@@ -593,10 +630,10 @@ function maskMatrix(matrix, mask = 0) {
   for (let y = 0; y < matrix.length; y++) {
     for (let x = 0; x < matrix[y].length; x++) {
       let bit = matrix[y][x];
-      if (bit == -1) continue;
-      if (bit == -2) continue;
+      // if (bit == -1) continue;
+      // if (bit == -2) continue;
 
-      bit = 0
+      if (canMask[y][x] != 1) continue;
       
       matrix[y][x] = maskBit(y, x, bit, mask);
     }
