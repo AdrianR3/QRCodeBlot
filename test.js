@@ -46,15 +46,40 @@ function polyRest(dividend, divisor) {
 
 function getGeneratorPoly(degree) {
   let lastPoly = new Uint8Array([1]);
+  console.log(lastPoly);
   for (let index = 0; index < degree; index++) {
     lastPoly = polyMul(lastPoly, new Uint8Array([1, EXP[index]]));
+    console.log(lastPoly);
   }
+
+  for (let i = 0; i < lastPoly.length; i++) {
+    lastPoly[i] = LOG[lastPoly[i]];
+  }
+
+  // for (let i = 0; i < lastPoly.length; i++) {
+  //   lastPoly[i] = EXP[lastPoly[i]];
+  // }
+  
   return lastPoly;
 }
 
-// console.log(
-//   getGeneratorPoly(8)
-// )
+console.log(`
+
+  
+
+`)
+
+const deg = 7;
+const alphaGeneratorPolynomial = getGeneratorPoly(deg);
+console.log(`getGeneratorPoly(${deg}): ${getGeneratorPoly(deg)}`)
+
+// for (
+
+// Example a^252 * a^9 != a^261
+//           "      "   = a^
+function multiplyAlphaNotationExponents(expA, expB) {
+  return (((expA + expB) % 256) + Math.floor((expA + expB) / 256) /*% 255*/)
+}
 
 function multiplyPolynomials(coeffs1, coeffs2) {
     const result = new Array(coeffs1.length + coeffs2.length - 1).fill(0);
@@ -95,4 +120,6 @@ const coefficients = polynomialMultiplication(n);
 
 // console.log(coefficients); // Output the coefficients of the final polynomial
 // console.log(multiplyBinomials([1, 2], [1, 2]))
-console.log(multiplyPolynomials([0, 25, 1], [0, 2]))
+// console.log(multiplyPolynomials([0, 25, 1], [0, 2]))
+
+// console.log(LOG)
