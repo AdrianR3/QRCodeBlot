@@ -14,10 +14,10 @@ const textToEncode = "HELLO WORLD";
 // const textToEncode = "Hello, world!";
 
 // The Following Parameters MUST be set correctly with respect each other and textToEncode
-const errorCorrectionLevel = "H"; // L (7%), M (15%), Q (25%), H (30%)
+const errorCorrectionLevel = "Q"; // L (7%), M (15%), Q (25%), H (30%)
 const encodeVersion = 1;          // https://www.thonky.com/qr-code-tutorial/character-capacities
-const requiredBits = 13 * 8;      // https://www.thonky.com/qr-code-tutorial/error-correction-table
-const errorCorrectionBytes = 13;  // https://www.thonky.com/qr-code-tutorial/error-correction-table
+const requiredBits = 10 * 8;      // https://www.thonky.com/qr-code-tutorial/error-correction-table
+const errorCorrectionBytes = 16;  // https://www.thonky.com/qr-code-tutorial/error-correction-table
 
 // Only Alphanumeric mode is supported
 const modeIndicator = 0b0010; // Numeric Mode = 0b0001, Alphanumeric Mode = 0b0010, etc.
@@ -35,23 +35,41 @@ setupExpLogTables();
 // binaryDataString = binaryStringToDecimalArray(binaryDataString);
 
 let errorCorrectionData = getErrorCorrectionData(binaryStringToDecimalArray(binaryDataString), requiredBits/8 + errorCorrectionBytes);
-    errorCorrectionData = [196,35,39,119,235,215,231,226,93,23]
+    // errorCorrectionData = [196,35,39,119,235,215,231,226,93,23]
 
-console.log(`binaryDataString: ${binaryDataString}`)
-console.log(`errorCorrectionData: ${errorCorrectionData}`)
+// errorCorrectionData = [
+//     0b00100000, 0b01011011, 
+//     0b00001011, 0b01111000, 
+//     0b11010001, 0b01110010, 
+//     0b11011100, 0b01001101, 
+//     0b01000011, 0b01000000, 
+//     0b11101100, 0b00010001, 
+//     0b11101100, 0b00010001, 
+//     0b11101100, 0b00010001
+//   ]
+
+console.log(`binaryDataString length: ${binaryDataString.length/8} bytes`)
+console.log(`errorCorrectionData length: ${errorCorrectionData.length} bytes`)
 
 let finalBinaryArray = binaryDataString;
 for (let i = 0; i < errorCorrectionData.length; i++) {
-  finalBinaryArray += errorCorrectionData[i].toString(2);
+
+  // DEBUG
+  if (i == 15) {
+    continue;
+  }
+  
+  finalBinaryArray += errorCorrectionData[i].toString(2).padStart(8, '0');
+  // console.log(errorCorrectionData[i].toString(2).padStart(8, '0'))
   console.log(`errorCorrectionData[${i}]: ${errorCorrectionData[i]}`);
 }
 
-console.log(`finalBinaryArray: ${finalBinaryArray}`);
+console.log(`finalBinaryArray length: ${finalBinaryArray.length/8} bytes`);
 
-// console.log(`test(
-// ${binaryDataString}, 
-// ${requiredBits/8 + errorCorrectionBytes}
-// ): ${test(binaryDataString, requiredBits/8 + errorCorrectionBytes)}`)
+console.log(`test(
+${binaryDataString}, 
+${requiredBits/8 + errorCorrectionBytes}
+): ${getErrorCorrectionData(binaryStringToDecimalArray(binaryDataString), requiredBits/8 + errorCorrectionBytes).length}`)
 
 function getErrorCorrectionData(data, numCodewords) {
   const degree = numCodewords - data.length;
@@ -78,39 +96,6 @@ function binaryStringToDecimalArray(binaryString) {
 
     return decimalArray;
 }
-
-// TODO: Reed-Solomon Error Correction
-
-// Example 2 Codeword Polynomial:
-// a^0*x^2 + a^25*x^1 + a^1*x^0
-
-// To obtain the generator polynomial:
-
-// Decide which QR code is being used
-
-// Get number of Error Correction codewords per block from
-// https://www.thonky.com/qr-code-tutorial/error-correction-table
-
-// then obtain the generator polynomial for said number of EC codewords
-// https://www.thonky.com/qr-code-tutorial/generator-polynomial-tool
-
-// "HELLO WORLD" 1-M codewords:
-// function generateEC() {
-//   let helloCodewords = [
-//     0b00100000, 0b01011011, 
-//     0b00001011, 0b01111000, 
-//     0b11010001, 0b01110010, 
-//     0b11011100, 0b01001101, 
-//     0b01000011, 0b01000000, 
-//     0b11101100, 0b00010001, 
-//     0b11101100, 0b00010001, 
-//     0b11101100, 0b00010001
-//   ]
-  
-//   for (let i = 0; i < helloCodewords.length; i++) {
-//     helloCodewords[i] = helloCodewords[i].toString(10)
-//   }
-// }
 
 function setupExpLogTables() {
   for (let exponent = 1, value = 1; exponent < 256; exponent++) {
@@ -532,7 +517,7 @@ function generateQRCode(
 
     // Error Correction Bits
     let errorCorrectionBits = "MLHQ".indexOf(errorCorrectionLevel).toString(2);
-    let maskPatternBits = maskId.toString(2);
+    let maskPatternBits = maskId.toString(2).slice(-3);
 
     // let formatString = errorCorrectionBits.padStart(2, "0") + maskPatternBits.padStart(3, "0") + "0".repeat(0);
     const generatorPolynomial = 10100110111;
@@ -542,7 +527,14 @@ function generateQRCode(
     poly.set(polyRemainder(poly, VERSION_DIVISOR), 6);
 
     const formatStrings = [0b111011111000100, 0b111001011110011, 0b111110110101010, 0b111100010011101, 0b110011000101111, 0b110001100011000, 0b110110001000001, 0b110100101110110, 0b101010000010010, 0b101000100100101, 0b101111001111100, 0b101101101001011, 0b100010111111001, 0b100000011001110, 0b100111110010111, 0b100101010100000, 0b011010101011111, 0b011000001101000, 0b011111100110001, 0b011101000000110, 0b010010010110100, 0b010000110000011, 0b010111011011010, 0b010101111101101, 0b001011010001001, 0b001001110111110, 0b001110011100111, 0b001100111010000, 0b000011101100010, 0b000001001010101, 0b000110100001100, 0b000100000111011]	
-    let formatString = formatStrings["MLHQ".indexOf(errorCorrectionLevel) * 8 + maskId].toString(2);
+    const formatIndex = "MLHQ".indexOf(errorCorrectionLevel) * 8 + (maskId % 8);
+    maskId = 6;
+    let formatString = formatStrings[formatIndex].toString(2);
+    console.log(`formatIndex: ${formatIndex}`)
+    // Debug
+    console.log(`old formatString: ${formatString}`)
+    formatString = "110011000101111"
+    console.log(`formatString: ${formatString}`)
 
     for (let i = 0; i < formatString.length; i++) {
       if (i < 8) {
@@ -559,16 +551,16 @@ function generateQRCode(
     }
   
     // function placeVersionModules(matrix) {
-      // const size = matrix.length;
-      // const version = (size - 17) >> 2;
-      if (version >= 7) {
-        poly.forEach((bit, index) => {
-          const row = Math.floor(index / 3);
-          const col = index % 3;
-          matrix[5 - row][size - 9 - col] = bit;
-          matrix[size - 11 + col][row] = bit;
-        });
-      }
+    //   const size = matrix.length;
+    //   const version = (size - 17) >> 2;
+    //   if (version >= 7) {
+    //     poly.forEach((bit, index) => {
+    //       const row = Math.floor(index / 3);
+    //       const col = index % 3;
+    //       matrix[5 - row][size - 9 - col] = bit;
+    //       matrix[size - 11 + col][row] = bit;
+    //     });
+    //   }
     // }
 
     
