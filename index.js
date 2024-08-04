@@ -16,7 +16,8 @@ const textToEncode = "HELLO WORLD";
 // The Following Parameters MUST be set correctly with respect each other and textToEncode
 const errorCorrectionLevel = "Q"; // L (7%), M (15%), Q (25%), H (30%)
 const encodeVersion = 1; // https://www.thonky.com/qr-code-tutorial/character-capacities
-const requiredBits = 13 * 8; // https://www.thonky.com/qr-code-tutorial/error-correction-table
+const requiredBits = 16 * 8; // https://www.thonky.com/qr-code-tutorial/error-correction-table
+const errorCorrectionBytes = 10;
 
 // Only Alphanumeric mode is supported
 const modeIndicator = 0b0010; // Numeric Mode = 0b0001, Alphanumeric Mode = 0b0010, etc.
@@ -33,23 +34,24 @@ const exp = new Uint8Array(256);
 setupExpLogTables();
 binaryDataString = binaryStringToDecimalArray(binaryDataString);
 
+let errorCorrectionData = getErrorCorrectionData(binaryDataString, requiredBits/8 + errorCorrectionBytes);
+
 console.log(`binaryDataString: ${binaryDataString}`)
-console.log(`getErrorCorrectionData: ${getErrorCorrectionData(binaryDataString, requiredBits/8)}`)
+console.log(`errorCorrectionData: ${errorCorrectionData}`)
 
-// console.log(`polyRemainder: ${polyRemainder(getGeneratorPoly(degree))}`)
-console.log(`getGeneratorPoly: ${getGeneratorPoly(5)}`)
-
-
-
+console.log(`test(
+${binaryDataString}, 
+${requiredBits/8 + errorCorrectionBytes}
+): ${test(binaryDataString, requiredBits/8 + errorCorrectionBytes)}`)
 
 function getErrorCorrectionData(data, numCodewords) {
   const degree = numCodewords - data.length;
-  console.log(`degree: ${degree}`)
+  
   const messagePoly = new Uint8Array(numCodewords);
   
   messagePoly.set(data, 0);
   
-  return polyRemainder(messagePoly, getGeneratorPoly(degree));
+  return polyRemainder(messagePoly, getGeneratorPoly(degree, false));
 }
 
 function binaryStringToDecimalArray(binaryString) {
@@ -138,7 +140,7 @@ const testEXP = [
   244, 245, 247, 243, 251, 235, 203, 139, 11, 22, 
   44, 88, 176, 125, 250, 233, 207, 131, 27, 54, 
   108, 216, 173, 71, 142, 1
-];						
+];
 
 // Example a^252 * a^9 != a^261
 //           "      "   = a^
@@ -198,13 +200,22 @@ function polyRemainder(dividend, divisor) {
   return rest;
 }
 
-function getGeneratorPoly(degree) {
+function getGeneratorPoly(degree, returnAlphaExponents = false) {
   let lastPoly = new Uint8Array([1]);
   for (let index = 0; index < degree; index++) {
-    // lastPoly = polyMul(lastPoly, new Uint8Array([1, exp[index]]));
-    lastPoly = polyMul(lastPoly, new Uint8Array([1, log[index]]));
-    console.log(`index: ${index}, log[index]: ${log[index]}`)
+    lastPoly = polyMul(lastPoly, new Uint8Array([1, exp[index]]));
   }
+
+  if (returnAlphaExponents) {
+    for (let i = 0; i < lastPoly.length; i++) {
+      lastPoly[i] = log[lastPoly[i]];
+    }
+  }
+
+  // for (let i = 0; i < lastPoly.length; i++) {
+  //   lastPoly[i] = EXP[lastPoly[i]];
+  // }
+  
   return lastPoly;
 }
 
