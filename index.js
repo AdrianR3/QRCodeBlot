@@ -28,7 +28,45 @@ const encoded = encodeAlphanumeric(textToEncode);
 
 let binaryDataString = getRawDataString();
 
+const log = new Uint8Array(256);
+const exp = new Uint8Array(256);
+setupExpLogTables();
+binaryDataString = binaryStringToDecimalArray(binaryDataString);
+
 console.log(`binaryDataString: ${binaryDataString}`)
+console.log(`getErrorCorrectionData: ${getErrorCorrectionData(binaryDataString, requiredBits/8)}`)
+
+// console.log(`polyRemainder: ${polyRemainder(getGeneratorPoly(degree))}`)
+console.log(`getGeneratorPoly: ${getGeneratorPoly(5)}`)
+
+
+
+
+function getErrorCorrectionData(data, numCodewords) {
+  const degree = numCodewords - data.length;
+  console.log(`degree: ${degree}`)
+  const messagePoly = new Uint8Array(numCodewords);
+  
+  messagePoly.set(data, 0);
+  
+  return polyRemainder(messagePoly, getGeneratorPoly(degree));
+}
+
+function binaryStringToDecimalArray(binaryString) {
+    const decimalArray = [];
+    const chunkSize = 8;
+
+    const paddedLength = 0//Math.ceil(binaryString.length / chunkSize) * chunkSize;
+    const paddedBinaryString = binaryString.padStart(paddedLength, '0');
+
+    for (let i = 0; i < paddedBinaryString.length; i += chunkSize) {
+        const chunk = paddedBinaryString.substring(i, i + chunkSize);
+        const decimalValue = parseInt(chunk, 2);
+        decimalArray.push(decimalValue);
+    }
+
+    return decimalArray;
+}
 
 // TODO: Reed-Solomon Error Correction
 
@@ -61,24 +99,67 @@ function generateEC() {
   for (let i = 0; i < helloCodewords.length; i++) {
     helloCodewords[i] = helloCodewords[i].toString(10)
   }
-
-  
-
 }
-generateEC()
 
-const log = new Uint8Array(256);
-const exp = new Uint8Array(256);
+// generateEC()
+
+function setupExpLogTables() {
+  for (let exponent = 1, value = 1; exponent < 256; exponent++) {
+    value = value > 127 ? ((value << 1) ^ 285) : value << 1;
+    log[value] = exponent % 255;
+    exp[exponent % 255] = value;
+  }
+}
+
+const testEXP = [
+  1, 2, 4, 8, 16, 32, 64, 128, 29, 58, 
+  116, 232, 205, 135, 19, 38, 76, 152, 45, 90, 
+  180, 117, 234, 201, 143, 3, 6, 12, 24, 48, 
+  96, 192, 157, 39, 78, 156, 37, 74, 148, 53, 
+  106, 212, 181, 119, 238, 193, 159, 35, 70, 140, 
+  5, 10, 20, 40, 80, 160, 93, 186, 105, 210, 
+  185, 111, 222, 161, 95, 190, 97, 194, 153, 47, 
+  94, 188, 101, 202, 137, 15, 30, 60, 120, 240, 
+  253, 231, 211, 187, 107, 214, 177, 127, 254, 225, 
+  223, 163, 91, 182, 113, 226, 217, 175, 67, 134, 
+  17, 34, 68, 136, 13, 26, 52, 104, 208, 189,
+  103, 206, 129, 31, 62, 124, 248, 237, 199, 147, 
+  59, 118, 236, 197, 151, 51, 102, 204, 133, 23, 
+  46, 92, 184, 109, 218, 169, 79, 158, 33, 66, 
+  132, 21, 42, 84, 168, 77, 154, 41, 82, 164, 
+  85, 170, 73, 146, 57, 114, 228, 213, 183, 115, 
+  230, 209, 191, 99, 198, 145, 63, 126, 252, 229, 
+  215, 179, 123, 246, 241, 255, 227, 219, 171, 75, 
+  150, 49, 98, 196, 149, 55, 110, 220, 165, 87, 
+  174, 65, 130, 25, 50, 100, 200, 141, 7, 14, 
+  28, 56, 112, 224, 221, 167, 83, 166, 81, 162, 
+  89, 178, 121, 242, 249, 239, 195, 155, 43, 86, 
+  172, 69, 138, 9, 18, 36, 72, 144, 61, 122, 
+  244, 245, 247, 243, 251, 235, 203, 139, 11, 22, 
+  44, 88, 176, 125, 250, 233, 207, 131, 27, 54, 
+  108, 216, 173, 71, 142, 1
+];						
+
+// Example a^252 * a^9 != a^261
+//           "      "   = a^
+function multiplyAlphaNotation(expA, expB) {
+  return (((expA + expB) % 256) + floor((expA + expB) / 256) /*% 255*/)
+}
+
 
 // https://en.wikiversity.org/wiki/Reed%E2%80%93Solomon_codes_for_coders#Multiplication
 function multiply(a, b) {
-  return a && 
-          b ? 
-            log[(log[a] + log[b]) % 255] : 0;
+  return a && b ? 
+    exp[
+      (log[a] + log[b]) % 255
+    // Return 0 if a or b is missing
+    ] : 0;
 }
 
 function divide(a, b) {
-  return exp[(log[a] + log[b] * 254) % 255];
+  return exp[
+      (log[a] + log[b] * 254) % 255
+    ];
 }
 
 // Big Thanks to maxart2501 for the help
@@ -117,13 +198,12 @@ function polyRemainder(dividend, divisor) {
   return rest;
 }
 
-// Not Working Yet.
-console.log(getGeneratorPoly(16))
-
 function getGeneratorPoly(degree) {
   let lastPoly = new Uint8Array([1]);
   for (let index = 0; index < degree; index++) {
-    lastPoly = polyMul(lastPoly, new Uint8Array([1, exp[index]]));
+    // lastPoly = polyMul(lastPoly, new Uint8Array([1, exp[index]]));
+    lastPoly = polyMul(lastPoly, new Uint8Array([1, log[index]]));
+    console.log(`index: ${index}, log[index]: ${log[index]}`)
   }
   return lastPoly;
 }
