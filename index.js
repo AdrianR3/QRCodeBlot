@@ -14,10 +14,10 @@ const textToEncode = "HELLO WORLD";
 // const textToEncode = "Hello, world!";
 
 // The Following Parameters MUST be set correctly with respect each other and textToEncode
-const errorCorrectionLevel = "Q"; // L (7%), M (15%), Q (25%), H (30%)
-const encodeVersion = 1; // https://www.thonky.com/qr-code-tutorial/character-capacities
-const requiredBits = 16 * 8; // https://www.thonky.com/qr-code-tutorial/error-correction-table
-const errorCorrectionBytes = 10;
+const errorCorrectionLevel = "L"; // L (7%), M (15%), Q (25%), H (30%)
+const encodeVersion = 1;          // https://www.thonky.com/qr-code-tutorial/character-capacities
+const requiredBits = 16 * 8;      // https://www.thonky.com/qr-code-tutorial/error-correction-table
+const errorCorrectionBytes = 10;  // https://www.thonky.com/qr-code-tutorial/error-correction-table
 
 // Only Alphanumeric mode is supported
 const modeIndicator = 0b0010; // Numeric Mode = 0b0001, Alphanumeric Mode = 0b0010, etc.
@@ -32,17 +32,25 @@ let binaryDataString = getRawDataString();
 const log = new Uint8Array(256);
 const exp = new Uint8Array(256);
 setupExpLogTables();
-binaryDataString = binaryStringToDecimalArray(binaryDataString);
+// binaryDataString = binaryStringToDecimalArray(binaryDataString);
 
-let errorCorrectionData = getErrorCorrectionData(binaryDataString, requiredBits/8 + errorCorrectionBytes);
+let errorCorrectionData = getErrorCorrectionData(binaryStringToDecimalArray(binaryDataString), requiredBits/8 + errorCorrectionBytes);
 
 console.log(`binaryDataString: ${binaryDataString}`)
 console.log(`errorCorrectionData: ${errorCorrectionData}`)
 
-console.log(`test(
-${binaryDataString}, 
-${requiredBits/8 + errorCorrectionBytes}
-): ${test(binaryDataString, requiredBits/8 + errorCorrectionBytes)}`)
+let finalBinaryArray = binaryDataString;
+for (let i = 0; i < errorCorrectionData.length; i++) {
+  finalBinaryArray += errorCorrectionData[i].toString(2);
+  console.log(`errorCorrectionData[${i}]: ${errorCorrectionData[i]}`);
+}
+
+console.log(`finalBinaryArray: ${finalBinaryArray}`);
+
+// console.log(`test(
+// ${binaryDataString}, 
+// ${requiredBits/8 + errorCorrectionBytes}
+// ): ${test(binaryDataString, requiredBits/8 + errorCorrectionBytes)}`)
 
 function getErrorCorrectionData(data, numCodewords) {
   const degree = numCodewords - data.length;
@@ -86,24 +94,22 @@ function binaryStringToDecimalArray(binaryString) {
 // https://www.thonky.com/qr-code-tutorial/generator-polynomial-tool
 
 // "HELLO WORLD" 1-M codewords:
-function generateEC() {
-  let helloCodewords = [
-    0b00100000, 0b01011011, 
-    0b00001011, 0b01111000, 
-    0b11010001, 0b01110010, 
-    0b11011100, 0b01001101, 
-    0b01000011, 0b01000000, 
-    0b11101100, 0b00010001, 
-    0b11101100, 0b00010001, 
-    0b11101100, 0b00010001
-  ]
+// function generateEC() {
+//   let helloCodewords = [
+//     0b00100000, 0b01011011, 
+//     0b00001011, 0b01111000, 
+//     0b11010001, 0b01110010, 
+//     0b11011100, 0b01001101, 
+//     0b01000011, 0b01000000, 
+//     0b11101100, 0b00010001, 
+//     0b11101100, 0b00010001, 
+//     0b11101100, 0b00010001
+//   ]
   
-  for (let i = 0; i < helloCodewords.length; i++) {
-    helloCodewords[i] = helloCodewords[i].toString(10)
-  }
-}
-
-// generateEC()
+//   for (let i = 0; i < helloCodewords.length; i++) {
+//     helloCodewords[i] = helloCodewords[i].toString(10)
+//   }
+// }
 
 function setupExpLogTables() {
   for (let exponent = 1, value = 1; exponent < 256; exponent++) {
@@ -247,6 +253,7 @@ let random = [
   1
 ];
 
+// Available Presets
 // Version (1-40), Stroke Width, Seed, Mask, Fill, Data to Use (0-2), Shapes
 const presets = [
     random,
@@ -255,7 +262,7 @@ const presets = [
     [1, 0, 12345, 5, undefined, 0, 0], // Preset 3
     [7, 6, 6342, 3, '#3EFFA3', 1, 0], // Preset 4
     [-1, 5, 1333, 5, '#3477eb', 0, 0], // Preset 5
-    [encodeVersion, 0, 12345, 0, '#3477eb', 2, -1], // Preset 6
+    [encodeVersion, 0, 12345, 4, '#3477eb', 2, -1], // Preset 6
 ]
 
 let strokeWidth = getPresets()[1];
@@ -408,7 +415,7 @@ function generateQRCode(
       }
     }
 
-    function setDataModule(targetIndex, dataValue) {
+    function setDataModule(targetIndex, dataValue, doSetBlock = false) {
   
       // Check if we have enough positions
       if (targetIndex >= availablePositions.length) {
@@ -420,7 +427,7 @@ function generateQRCode(
       // Set the data module at next available bit
       const { ax, y } = availablePositions[targetIndex];
       setData(ax, y, dataValue);
-      // setBlock(ax, y, dataValue);
+      if (doSetBlock) setBlock(ax, y, dataValue);
     }
 
     // Finder patterns
@@ -499,17 +506,38 @@ function generateQRCode(
     getAvailablePositions();
     console.log(`Available Data Bits: ${availablePositions.length}`)
 
-    // Fill Data bits
     for (let i = 0; i < availablePositions.length; i++) {
       // setDataModule(i, i+4)
       // Todo: set data properly
-      setDataModule(i, 1)//Math.round(bt.rand()))
+      setDataModule(i, 0)
+    }
+  
+    // Fill Data bits
+    for (let i = 0; i < finalBinaryArray.length; i++) {
+      // setDataModule(i, i+4)
+      // Todo: set data properly
+      setDataModule(i, finalBinaryArray[i], true)
     }
 
     let maskId = getPresets()[3];
     const maskedData = maskMatrix(JSON.parse(JSON.stringify(dataArray)), maskId);
     
     applyMaskedMatrix(matrix, maskedData);
+
+    // TODO: Automatically detect mask
+    const usedMaskID = maskId;
+
+    // QR Code Metadata
+
+    // Error Correction Bits
+    let errorCorrectionBits = "MLHQ".indexOf(errorCorrectionLevel).toString(2);
+    let maskPatternBits = maskId.toString(2);
+
+    let formatString = errorCorrectionBits.padStart(2, "0") + maskPatternBits.padStart(3, "0") + "0".repeat(0);
+    const generatorPolynomial = 10100110111;
+
+    console.log(`test: ${formatString}`)
+    
     
     // return maskedArray;
     // return dataArray;
