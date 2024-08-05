@@ -1,3 +1,9 @@
+/*
+@title: Scannable QR Art
+@author: AdrianR3
+@snapshot: snapshot-1.png
+*/
+
 const width = 125;
 const height = 125;
 
@@ -6,20 +12,24 @@ const height = 125;
 
 // Try Presets 1 - 5
 // Preset 1 will encode the 'textToEncode' string below
-// QR Code is only scannable on Preset 1, but make sure to check out the other presets.
+// QR Code is only scannable on Preset 1, but check out the other presets for other cool images.
 const PRESET = 1;
 const maxRandomVersion = 10;
 
 // QR Code Generation (PRESET = 1)
-// const textToEncode = "HELLO WORLD12345".substring(0, 16);
-const textToEncode = "Never gonna give you up".substring(0, 16);
+// Substring length can be changed, but the QR code will not scan if textToEncode is too long for the chosen QR code version
+const textToEncode = "Never gonna give you up"//.substring(0, 16); Version 1 cannot do more than 16 characters in alphanumeric mode
+const drawShapeMode = 1;
+const wireframe = false;
+const fillColor = wireframe ? undefined : '#3477eb';//Change to undefined for wireframe
 
 // The Following Parameters MUST be set correctly with respect each other and textToEncode
-const errorCorrectionLevel = "Q"; // L (7%), M (15%), Q (25%), H (30%)
-const encodeVersion = 1;          // https://www.thonky.com/qr-code-tutorial/character-capacities
-const requiredBits = 10 * 8;      // https://www.thonky.com/qr-code-tutorial/error-correction-table
-const errorCorrectionBytes = 16;  // https://www.thonky.com/qr-code-tutorial/error-correction-table
-const qrMaskId = 6;
+const encodeVersion = 2;          // https://www.thonky.com/qr-code-tutorial/character-capacities
+const errorCorrectionLevel = "M"; // L (7%), M (15%), Q (25%), H (30%)
+const requiredBits = 28 * 8;      // "Data Codewords" https://www.thonky.com/qr-code-tutorial/error-correction-table
+const errorCorrectionBytes = 16;  // "EC Codewords Per Block" https://www.thonky.com/qr-code-tutorial/error-correction-table
+
+let qrMaskId = bt.randIntInRange(0, 7); // Set this manually if you are having issues scanning the qr code
 
 // Only Alphanumeric mode is supported
 const modeIndicator = 0b0010; // Numeric Mode = 0b0001, Alphanumeric Mode = 0b0010, etc.
@@ -39,23 +49,14 @@ let errorCorrectionData = getErrorCorrectionData(binaryStringToDecimalArray(bina
     // errorCorrectionData = [196,35,39,119,235,215,231,226,93,23length} bytes`)
 
 let finalBinaryArray = binaryDataString;
-for (let i = 0; i < errorCorrectionData.length; i++) {
-
-  // DEBUG
-  if (i == 15) {
-    continue;
-  }
-  
+for (let i = 0; i < errorCorrectionData.length; i++) {  
   finalBinaryArray += errorCorrectionData[i].toString(2).padStart(8, '0');
-  console.log(`errorCorrectionData[${i}]: ${errorCorrectionData[i]}`);
 }
 
-console.log(`finalBinaryArray length: ${finalBinaryArray.length/8} bytes`);
-
-console.log(`test(
-${binaryDataString}, 
-${requiredBits/8 + errorCorrectionBytes}
-): ${getErrorCorrectionData(binaryStringToDecimalArray(binaryDataString), requiredBits/8 + errorCorrectionBytes).length}`)
+// console.log(`test(
+// ${binaryDataString}, 
+// ${requiredBits/8 + errorCorrectionBytes}
+// ): ${getErrorCorrectionData(binaryStringToDecimalArray(binaryDataString), requiredBits/8 + errorCorrectionBytes).length}`)
 
 function getErrorCorrectionData(data, numCodewords) {
   const degree = numCodewords - data.length;
@@ -200,7 +201,7 @@ let random = [
 // Version (1-40), Stroke Width, Seed, Mask, Fill, Data to Use (0-2), Shapes
 const presets = [
     random,
-    [encodeVersion, 0, 12345, qrMaskId, '#3477eb', 2, 0], // Preset 1
+    [encodeVersion, 0, 12345, qrMaskId, fillColor, 2, drawShapeMode], // Preset 1
     [12, 1, 12345, 6, '#FFFFFF', 0, 0], // Preset 2
     [1, 0, 12345, 5, undefined, 0, 0], // Preset 3
     [7, 6, 6342, 3, '#3EFFA3', 1, 0], // Preset 4
@@ -689,11 +690,11 @@ for(let y = 0; y < finalQRArray.length; y++) {
       // renderSquare(x, y);
       switch (Number(getPresets()[6])) {
         case 0:
-          // renderRounded(x, y)
-          // continue;
+          renderRounded(x, y)
+          continue;
         case -1:
-          // renderSquare(x, y)
-          // continue;
+          renderSquare(x, y)
+          continue;
       }
       
       if (dataVal == -2 && val == 1) {
