@@ -5,19 +5,21 @@ const height = 125;
 // Randomly Generated: 0
 
 // Try Presets 1 - 5
-// Preset 6 will encode the 'textToEncode' string below
-const PRESET = 6;
+// Preset 1 will encode the 'textToEncode' string below
+// QR Code is only scannable on Preset 1, but make sure to check out the other presets.
+const PRESET = 1;
 const maxRandomVersion = 10;
 
-// QR Code Generation (PRESET = 6)
-const textToEncode = "HELLO WORLD";
-// const textToEncode = "Hello, world!";
+// QR Code Generation (PRESET = 1)
+// const textToEncode = "HELLO WORLD12345".substring(0, 16);
+const textToEncode = "Never gonna give you up".substring(0, 16);
 
 // The Following Parameters MUST be set correctly with respect each other and textToEncode
 const errorCorrectionLevel = "Q"; // L (7%), M (15%), Q (25%), H (30%)
 const encodeVersion = 1;          // https://www.thonky.com/qr-code-tutorial/character-capacities
 const requiredBits = 10 * 8;      // https://www.thonky.com/qr-code-tutorial/error-correction-table
 const errorCorrectionBytes = 16;  // https://www.thonky.com/qr-code-tutorial/error-correction-table
+const qrMaskId = 6;
 
 // Only Alphanumeric mode is supported
 const modeIndicator = 0b0010; // Numeric Mode = 0b0001, Alphanumeric Mode = 0b0010, etc.
@@ -32,24 +34,9 @@ let binaryDataString = getRawDataString();
 const log = new Uint8Array(256);
 const exp = new Uint8Array(256);
 setupExpLogTables();
-// binaryDataString = binaryStringToDecimalArray(binaryDataString);
 
 let errorCorrectionData = getErrorCorrectionData(binaryStringToDecimalArray(binaryDataString), requiredBits/8 + errorCorrectionBytes);
-    // errorCorrectionData = [196,35,39,119,235,215,231,226,93,23]
-
-// errorCorrectionData = [
-//     0b00100000, 0b01011011, 
-//     0b00001011, 0b01111000, 
-//     0b11010001, 0b01110010, 
-//     0b11011100, 0b01001101, 
-//     0b01000011, 0b01000000, 
-//     0b11101100, 0b00010001, 
-//     0b11101100, 0b00010001, 
-//     0b11101100, 0b00010001
-//   ]
-
-console.log(`binaryDataString length: ${binaryDataString.length/8} bytes`)
-console.log(`errorCorrectionData length: ${errorCorrectionData.length} bytes`)
+    // errorCorrectionData = [196,35,39,119,235,215,231,226,93,23length} bytes`)
 
 let finalBinaryArray = binaryDataString;
 for (let i = 0; i < errorCorrectionData.length; i++) {
@@ -60,7 +47,6 @@ for (let i = 0; i < errorCorrectionData.length; i++) {
   }
   
   finalBinaryArray += errorCorrectionData[i].toString(2).padStart(8, '0');
-  // console.log(errorCorrectionData[i].toString(2).padStart(8, '0'))
   console.log(`errorCorrectionData[${i}]: ${errorCorrectionData[i]}`);
 }
 
@@ -104,35 +90,6 @@ function setupExpLogTables() {
     exp[exponent % 255] = value;
   }
 }
-
-const testEXP = [
-  1, 2, 4, 8, 16, 32, 64, 128, 29, 58, 
-  116, 232, 205, 135, 19, 38, 76, 152, 45, 90, 
-  180, 117, 234, 201, 143, 3, 6, 12, 24, 48, 
-  96, 192, 157, 39, 78, 156, 37, 74, 148, 53, 
-  106, 212, 181, 119, 238, 193, 159, 35, 70, 140, 
-  5, 10, 20, 40, 80, 160, 93, 186, 105, 210, 
-  185, 111, 222, 161, 95, 190, 97, 194, 153, 47, 
-  94, 188, 101, 202, 137, 15, 30, 60, 120, 240, 
-  253, 231, 211, 187, 107, 214, 177, 127, 254, 225, 
-  223, 163, 91, 182, 113, 226, 217, 175, 67, 134, 
-  17, 34, 68, 136, 13, 26, 52, 104, 208, 189,
-  103, 206, 129, 31, 62, 124, 248, 237, 199, 147, 
-  59, 118, 236, 197, 151, 51, 102, 204, 133, 23, 
-  46, 92, 184, 109, 218, 169, 79, 158, 33, 66, 
-  132, 21, 42, 84, 168, 77, 154, 41, 82, 164, 
-  85, 170, 73, 146, 57, 114, 228, 213, 183, 115, 
-  230, 209, 191, 99, 198, 145, 63, 126, 252, 229, 
-  215, 179, 123, 246, 241, 255, 227, 219, 171, 75, 
-  150, 49, 98, 196, 149, 55, 110, 220, 165, 87, 
-  174, 65, 130, 25, 50, 100, 200, 141, 7, 14, 
-  28, 56, 112, 224, 221, 167, 83, 166, 81, 162, 
-  89, 178, 121, 242, 249, 239, 195, 155, 43, 86, 
-  172, 69, 138, 9, 18, 36, 72, 144, 61, 122, 
-  244, 245, 247, 243, 251, 235, 203, 139, 11, 22, 
-  44, 88, 176, 125, 250, 233, 207, 131, 27, 54, 
-  108, 216, 173, 71, 142, 1
-];
 
 // Example a^252 * a^9 != a^261
 //           "      "   = a^
@@ -243,12 +200,12 @@ let random = [
 // Version (1-40), Stroke Width, Seed, Mask, Fill, Data to Use (0-2), Shapes
 const presets = [
     random,
-    [5, 20, 12345, 5, '#FF0000', 0, 0], // Preset 1
+    [encodeVersion, 0, 12345, qrMaskId, '#3477eb', 2, 0], // Preset 1
     [12, 1, 12345, 6, '#FFFFFF', 0, 0], // Preset 2
     [1, 0, 12345, 5, undefined, 0, 0], // Preset 3
     [7, 6, 6342, 3, '#3EFFA3', 1, 0], // Preset 4
     [-1, 5, 1333, 5, '#3477eb', 0, 0], // Preset 5
-    [encodeVersion, 0, 12345, 6, '#3477eb', 2, -1], // Preset 6
+    [5, 20, 12345, 5, '#FF0000', 0, 0], // Preset 6
 ]
 
 let strokeWidth = getPresets()[1];
@@ -300,10 +257,6 @@ function circle(r, x, y) {
   return t.path;
 }
 
-// Helper function to convert string to binary representation
-//function toBinaryArray(str) {
-//    return str.split('').map(char => char.charCodeAt(0).toStseparatorRing(2).padStart(8, '0')).join('');
-//}
 let dataArray = emptyArray(version, -1);
 let canMask = emptyArray(version, 1);
 function generateQRCode(
@@ -511,11 +464,9 @@ function generateQRCode(
     
     applyMaskedMatrix(matrix, maskedData);
 
-    // TODO: Automatically detect mask
     const usedMaskID = maskId;
 
     // QR Code Metadata
-
     // Error Correction Bits
     let errorCorrectionBits = "MLHQ".indexOf(errorCorrectionLevel).toString(2);
     let maskPatternBits = maskId.toString(2).slice(-3);
@@ -527,20 +478,15 @@ function generateQRCode(
     const poly = Uint8Array.from(generatorPolynomial.toString(2).padStart(6, '0') + '000000000000');
     poly.set(polyRemainder(poly, VERSION_DIVISOR), 6);
 
-    // test
-    // maskId = 4;
     const formatStrings = [0b111011111000100, 0b111001011110011, 0b111110110101010, 0b111100010011101, 0b110011000101111, 0b110001100011000, 0b110110001000001, 0b110100101110110, 0b101010000010010, 0b101000100100101, 0b101111001111100, 0b101101101001011, 0b100010111111001, 0b100000011001110, 0b100111110010111, 0b100101010100000, 0b011010101011111, 0b011000001101000, 0b011111100110001, 0b011101000000110, 0b010010010110100, 0b010000110000011, 0b010111011011010, 0b010101111101101, 0b001011010001001, 0b001001110111110, 0b001110011100111, 0b001100111010000, 0b000011101100010, 0b000001001010101, 0b000110100001100, 0b000100000111011]	
     const formatIndex = "LMQH".indexOf(errorCorrectionLevel) * 8 + (maskId % 8);
-    // console.log("LMQH".indexOf(errorCorrectionLevel))
     
     let formatString = formatStrings[formatIndex].toString(2).padStart(15, "0");
 
-    // Debug
-    // console.log(`old formatString: ${formatString}`)
     // console.log(`formatIndex: ${formatIndex}`)
     // formatString = "110011000101111"
   
-    console.log(`formatString: ${formatString}, ${formatString.length}`)
+    // console.log(`formatString: ${formatString}, ${formatString.length}`)
   
     for (let i = 0; i < formatString.length; i++) {
       if (i < 8) {
@@ -554,25 +500,7 @@ function generateQRCode(
         setBlock(matrix.length - 15 + i, 8, formatString[i])
       }
     }
-  
-    // function placeVersionModules(matrix) {
-    //   const size = matrix.length;
-    //   const version = (size - 17) >> 2;
-    //   if (version >= 7) {
-    //     poly.forEach((bit, index) => {
-    //       const row = Math.floor(index / 3);
-    //       const col = index % 3;
-    //       matrix[5 - row][size - 9 - col] = bit;
-    //       matrix[size - 11 + col][row] = bit;
-    //     });
-    //   }
-    // }
 
-    
-    
-    
-    // return maskedArray;
-    // return dataArray;
     return matrix;
 }
 
@@ -590,7 +518,6 @@ function encodeAlphanumeric(dataToEncode) {
       // Character pair
       let n = (a * 45) + b
       dataBlock = Number(n).toString(2).padStart(11, 0)
-      // pair is dataToEncode.substring(i, i + 2)
     }
 
     output += dataBlock;
@@ -707,7 +634,6 @@ switch (Number(getPresets()[5])) {
     // String Data
     // Encode string data
 
-    // Empty Array for now
     baseArray = Array.from({ length: size }, () => Array(size).fill(3));
     break;
   // default:
@@ -716,12 +642,6 @@ switch (Number(getPresets()[5])) {
 }
 
 let finalQRArray = generateQRCode(version, baseArray);
-
-// Output QR code qrArray
-// console.log(
-//   finalQRArray.map(row => row.map(val => val == 0 ? ' ' : val == 3 ? '⋅' : '■').join(' '))
-//             .join('\n')
-//            );
 
 console.log(QR2Text(finalQRArray));
 
@@ -754,8 +674,10 @@ function QR2Text(QRArray) {
   ).join('\n');
 }
 
-// Convert QR Code Array into rectangles for drawing
+// Debugging
 let renderEmpty = false;
+
+// Convert QR Code Array into shapes for drawing
 const s = height/finalQRArray.length;
 for(let y = 0; y < finalQRArray.length; y++) {
   for (let x = 0; x < finalQRArray[y].length; x++) {
@@ -767,16 +689,16 @@ for(let y = 0; y < finalQRArray.length; y++) {
       // renderSquare(x, y);
       switch (Number(getPresets()[6])) {
         case 0:
-          renderRounded(x, y)
-          continue;
+          // renderRounded(x, y)
+          // continue;
         case -1:
-          renderSquare(x, y)
-          continue;
+          // renderSquare(x, y)
+          // continue;
       }
       
       if (dataVal == -2 && val == 1) {
-        renderSquare(x, y);
-        continue;
+        // renderSquare(x, y);
+        // continue;
       }
 
       if (bt.rand() < 0.15) {
@@ -882,7 +804,6 @@ function renderRounded(x, y) {
   }
   
   lines.push(a[0]);
-  // lines.push(r[0]);
 }
 
 function renderCircle(x, y) {
@@ -899,7 +820,5 @@ function renderSquare(x, y) {
 bt.scale(lines, finalQRArray.length/(finalQRArray.length+8))
 
 drawLines(lines, {'fill': getPresets()[4], 'width': strokeWidth});
-// 'stroke': '#FFFF00'
-                 
 
 // drawLines(circle(2, width/2, height/2), {'fill': '#FF0000'})
