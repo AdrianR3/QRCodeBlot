@@ -18,7 +18,9 @@ const maxRandomVersion = 10;
 
 // QR Code Generation (PRESET = 1)
 // Substring length can be changed, but the QR code will not scan if textToEncode is too long for the chosen QR code version
-const textToEncode = "Never gonna give you up"//.substring(0, 16); Version 1 cannot do more than 16 characters in alphanumeric mode
+const textToEncode = "Never gonna give you up"//.substring(0, 16); 
+// Version 1 cannot do more than 16 characters in alphanumeric mode
+// See https://www.thonky.com/qr-code-tutorial/character-capacities
 const drawShapeMode = 1;
 const wireframe = false;
 const fillColor = wireframe ? undefined : '#3477eb';//Change to undefined for wireframe
@@ -37,7 +39,16 @@ const charCountIndicator = Number(textToEncode.length)
   .toString(2)
   .padStart(encodeVersion <= 9 ? 9 : (encodeVersion <= 26 ? 11 : 13), 0)
 
-const encoded = encodeAlphanumeric(textToEncode);
+let encoded;// = encodeAlphanumeric(textToEncode);
+
+switch (modeIndicator) {
+  case 0b0010:
+    encoded = encodeAlphanumeric(textToEncode);
+    break;
+  case 0b0011:
+    encoded = encodeBytes(textToEncode);
+    break;
+}
 
 let binaryDataString = getRawDataString();
 
@@ -52,11 +63,6 @@ let finalBinaryArray = binaryDataString;
 for (let i = 0; i < errorCorrectionData.length; i++) {  
   finalBinaryArray += errorCorrectionData[i].toString(2).padStart(8, '0');
 }
-
-// console.log(`test(
-// ${binaryDataString}, 
-// ${requiredBits/8 + errorCorrectionBytes}
-// ): ${getErrorCorrectionData(binaryStringToDecimalArray(binaryDataString), requiredBits/8 + errorCorrectionBytes).length}`)
 
 function getErrorCorrectionData(data, numCodewords) {
   const degree = numCodewords - data.length;
@@ -161,10 +167,6 @@ function getGeneratorPoly(degree, returnAlphaExponents = false) {
       lastPoly[i] = log[lastPoly[i]];
     }
   }
-
-  // for (let i = 0; i < lastPoly.length; i++) {
-  //   lastPoly[i] = EXP[lastPoly[i]];
-  // }
   
   return lastPoly;
 }
@@ -246,8 +248,6 @@ function rect(w, h, x = 0, y = 0) {
     [-w/2 + x, h/2 + y],
   ]
 }
-
-
 
 function circle(r, x, y) {
   const t = new bt.Turtle();
@@ -448,15 +448,15 @@ function generateQRCode(
     }
     
     getAvailablePositions();
-    console.log(`Available Data Bits: ${availablePositions.length}`)
+    // console.log(`Available Data Bits: ${availablePositions.length}`)
 
+    // Write zeros to all data modules
     for (let i = 0; i < availablePositions.length; i++) {
       setDataModule(i, 0)
     }
   
-    // Fill Data bits
+    // Fill Data modules
     for (let i = 0; i < finalBinaryArray.length; i++) {
-      // setDataModule(i, i+4)
       setDataModule(i, finalBinaryArray[i])
     }
 
@@ -473,21 +473,16 @@ function generateQRCode(
     let maskPatternBits = maskId.toString(2).slice(-3);
 
     // let formatString = errorCorrectionBits.padStart(2, "0") + maskPatternBits.padStart(3, "0") + "0".repeat(0);
-    const generatorPolynomial = 10100110111;
+    // const generatorPolynomial = 10100110111;
 
-    const VERSION_DIVISOR = new Uint8Array([1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1]);
-    const poly = Uint8Array.from(generatorPolynomial.toString(2).padStart(6, '0') + '000000000000');
-    poly.set(polyRemainder(poly, VERSION_DIVISOR), 6);
+    // const VERSION_DIVISOR = new Uint8Array([1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1]);
+    // const poly = Uint8Array.from(generatorPolynomial.toString(2).padStart(6, '0') + '000000000000');
+    // poly.set(polyRemainder(poly, VERSION_DIVISOR), 6);
 
     const formatStrings = [0b111011111000100, 0b111001011110011, 0b111110110101010, 0b111100010011101, 0b110011000101111, 0b110001100011000, 0b110110001000001, 0b110100101110110, 0b101010000010010, 0b101000100100101, 0b101111001111100, 0b101101101001011, 0b100010111111001, 0b100000011001110, 0b100111110010111, 0b100101010100000, 0b011010101011111, 0b011000001101000, 0b011111100110001, 0b011101000000110, 0b010010010110100, 0b010000110000011, 0b010111011011010, 0b010101111101101, 0b001011010001001, 0b001001110111110, 0b001110011100111, 0b001100111010000, 0b000011101100010, 0b000001001010101, 0b000110100001100, 0b000100000111011]	
     const formatIndex = "LMQH".indexOf(errorCorrectionLevel) * 8 + (maskId % 8);
     
     let formatString = formatStrings[formatIndex].toString(2).padStart(15, "0");
-
-    // console.log(`formatIndex: ${formatIndex}`)
-    // formatString = "110011000101111"
-  
-    // console.log(`formatString: ${formatString}, ${formatString.length}`)
   
     for (let i = 0; i < formatString.length; i++) {
       if (i < 8) {
@@ -525,6 +520,15 @@ function encodeAlphanumeric(dataToEncode) {
   }
 
   return output;
+}
+
+function encodeBytes(input) {
+  return Array.from(input)
+    .map(char => {
+      const code = char.charCodeAt(0);
+      return code.toString(2).padStart(8, '0');
+    })
+    .join('');
 }
 
 function convertToAlphanumericNum(char) {
@@ -633,13 +637,11 @@ switch (Number(getPresets()[5])) {
     break;
   case 2:
     // String Data
-    // Encode string data
-
     baseArray = Array.from({ length: size }, () => Array(size).fill(3));
     break;
-  // default:
-    // baseArray = emptyArray(version);
-    // break;
+  default:
+    baseArray = emptyArray(version);
+    break;
 }
 
 let finalQRArray = generateQRCode(version, baseArray);
@@ -689,21 +691,21 @@ for(let y = 0; y < finalQRArray.length; y++) {
       // Full Square
       // renderSquare(x, y);
       switch (Number(getPresets()[6])) {
-        case 0:
-          renderRounded(x, y)
-          continue;
-        case -1:
-          renderSquare(x, y)
-          continue;
+        // case 0:
+        //   renderRounded(x, y)
+        //   continue;
+        // case -1:
+        //   renderSquare(x, y)
+        //   continue;
       }
       
-      if (dataVal == -2 && val == 1) {
+      // if (dataVal == -2 && val == 1) {
         // renderSquare(x, y);
         // continue;
-      }
+      // }
 
       if (bt.rand() < 0.15) {
-        switch (Number(bt.randIntInRange(1, 4))) {
+        switch (Number(bt.randIntInRange(1, 5))) {
           case 1:
             renderXMark(x, y);
             break;
@@ -715,6 +717,9 @@ for(let y = 0; y < finalQRArray.length; y++) {
             break;
           case 4:
             renderAsterisk(x, y)
+            break;
+          case 5:
+            renderDiamond(x, y, 1.75)
             break;
         }
       } else {
@@ -771,8 +776,8 @@ function renderAsterisk(x, y) {
   lines.push(c[0]);
 }
 
-function renderDiamond(x, y) {
-  let a = [rect(s/3, s/3, s*x + s/2, height- s*y - s/2)];
+function renderDiamond(x, y, size = 1) {
+  let a = [rect(size*s/3, size*s/3, s*x + s/2, height- s*y - s/2)];
   bt.rotate(a, 45)
   lines.push(a[0]);
 }
@@ -807,8 +812,8 @@ function renderRounded(x, y) {
   lines.push(a[0]);
 }
 
-function renderCircle(x, y) {
-  let a = circle(s/2, width/size*x, height - height/size*y);
+function renderCircle(x, y, size = 1) {
+  let a = circle(size * s/2, width/size*x, height - height/size*y);
   lines.push(a[0]);
 }
 
@@ -821,5 +826,3 @@ function renderSquare(x, y) {
 bt.scale(lines, finalQRArray.length/(finalQRArray.length+8))
 
 drawLines(lines, {'fill': getPresets()[4], 'width': strokeWidth});
-
-// drawLines(circle(2, width/2, height/2), {'fill': '#FF0000'})
