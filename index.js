@@ -239,7 +239,7 @@ let random = [
   1
 ];
 
-// Available Presets
+// All Available Presets
 // Version (1-40), Stroke Width, Seed, Mask, Fill, Data to Use (0-2), Shapes
 const presets = [
     random,
@@ -321,10 +321,10 @@ function generateQRCode(
     }
 
     // Function to set a fixed module in the matrix
-    function setBlock(x, y, value = 1) {
+    function setBlock(x, y, value = 1, canMaskModuleBit = 0) {
         if (x >= 0 && x < size && y >= 0 && y < size) {
             matrix[y][x] = value;
-            canMask[y][x] = 0;
+            canMask[y][x] = canMaskModuleBit;
             // dataArray[y][x] = -2;
         }
     }
@@ -416,6 +416,7 @@ function generateQRCode(
       // Set the data module at next available bit
       const { ax, y } = availablePositions[targetIndex];
       setData(ax, y, dataValue);
+      
       if (doSetBlock) setBlock(ax, y, dataValue);
     }
 
@@ -458,7 +459,7 @@ function generateQRCode(
     }
 
 
-    const reservedValue = 0;
+    const reservedValue = 4;
     // Reserve Format Information Area
     for (let x = 0; x < size; x++) {
       if (!(x < 9 || x > size - 9)) continue;
@@ -526,24 +527,28 @@ function generateQRCode(
     const poly = Uint8Array.from(generatorPolynomial.toString(2).padStart(6, '0') + '000000000000');
     poly.set(polyRemainder(poly, VERSION_DIVISOR), 6);
 
+    // test
+    // maskId = 4;
     const formatStrings = [0b111011111000100, 0b111001011110011, 0b111110110101010, 0b111100010011101, 0b110011000101111, 0b110001100011000, 0b110110001000001, 0b110100101110110, 0b101010000010010, 0b101000100100101, 0b101111001111100, 0b101101101001011, 0b100010111111001, 0b100000011001110, 0b100111110010111, 0b100101010100000, 0b011010101011111, 0b011000001101000, 0b011111100110001, 0b011101000000110, 0b010010010110100, 0b010000110000011, 0b010111011011010, 0b010101111101101, 0b001011010001001, 0b001001110111110, 0b001110011100111, 0b001100111010000, 0b000011101100010, 0b000001001010101, 0b000110100001100, 0b000100000111011]	
-    const formatIndex = "MLHQ".indexOf(errorCorrectionLevel) * 8 + (maskId % 8);
-    maskId = 6;
-    let formatString = formatStrings[formatIndex].toString(2);
-    console.log(`formatIndex: ${formatIndex}`)
-    // Debug
-    console.log(`old formatString: ${formatString}`)
-    formatString = "110011000101111"
-    console.log(`formatString: ${formatString}`)
+    const formatIndex = "LMQH".indexOf(errorCorrectionLevel) * 8 + (maskId % 8);
+    // console.log("LMQH".indexOf(errorCorrectionLevel))
+    
+    let formatString = formatStrings[formatIndex].toString(2).padStart(15, "0");
 
+    // Debug
+    // console.log(`old formatString: ${formatString}`)
+    // console.log(`formatIndex: ${formatIndex}`)
+    // formatString = "110011000101111"
+  
+    console.log(`formatString: ${formatString}, ${formatString.length}`)
+  
     for (let i = 0; i < formatString.length; i++) {
       if (i < 8) {
         setBlock(i > 5 ? i+1 : i, 8, formatString[i])
-        if (i == 7) {
+        if (i == 6) {
           setBlock(matrix.length - 8, 8, formatString[i])
-        } else {
-          setBlock(8, matrix.length - i - 1, formatString[i])
         }
+        setBlock(8, matrix.length - i - 1, formatString[i])
       } else {
         setBlock(8, i < 9 ? 15-i : 14-i, formatString[i])
         setBlock(matrix.length - 15 + i, 8, formatString[i])
@@ -718,7 +723,7 @@ let finalQRArray = generateQRCode(version, baseArray);
 //             .join('\n')
 //            );
 
-// console.log(QR2Text(finalQRArray));
+console.log(QR2Text(finalQRArray));
 
 function QR2Text(QRArray) {
   return QRArray.map(row => 
