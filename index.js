@@ -4,15 +4,47 @@
 @snapshot: snapshot-1.png
 */
 
+/*
+
+How to use:
+
+There are quick configuration variables below this block comment. 
+You can also change the PRESET variable to see some presets I found cool.
+
+When changing settings related to the QR generation, if the correct values are not selected from the table, 
+the QR code will often still generate while being unscannable. However, due to the nature of the patterns drawn, 
+not all generated QR codes are easily scannable even though they are technically correct.
+
+Please refer to the tables from Thonky's QR Tutorial to find appropriate values.
+
+
+About the Project:
+
+As a part of this project, I wrote my own QR code generator without the assistance of external libraries.
+
+This project is essentialy the culmination of me learning the math and algorithms
+behind the common QR (Quick Response) Code. Although this project pulled me 
+straight out of my mathematical comfort zone with GF(256) Arithmetic, I throughoughly enjoyed the adventure.
+
+This project would not be possible without "Thonky.com's QR Tutorial":
+https://www.thonky.com/qr-code-tutorial
+
+Other Resources:
+https://stackoverflow.com/questions/13238704/calculating-the-position-of-qr-code-alignment-patterns
+https://www.cognex.com/blogs/barcode-verification/how-to-perfect-qr-code-quality
+
+There are more inline links to resources used before their respective functions.
+
+*/
+
 const width = 125;
 const height = 125;
-
-// This controls whether you are looking at a preset or a randomly generated piece
-// Randomly Generated: 0
 
 // Try Presets 1 - 5
 // Preset 1 will encode the 'textToEncode' string below
 // QR Code is only scannable on Preset 1, but check out the other presets for other cool images.
+
+// Alternatively, set PRESET = 0 to get a COMPLETELY random drawing.
 const PRESET = 1;
 const maxRandomVersion = 10;
 
@@ -22,10 +54,11 @@ const textToEncode = "Never gonna give you up"//.substring(0, 16);
 // Version 1 cannot do more than 16 characters in alphanumeric mode
 // See https://www.thonky.com/qr-code-tutorial/character-capacities
 const drawShapeMode = 1;
-const wireframe = false;
-const fillColor = wireframe ? undefined : '#3477eb';//Change to undefined for wireframe
+const wireframe = false; // Change to true for wireframe rendering (No Fill)
+const fillColor = wireframe ? undefined : '#3477eb';
 
 // The Following Parameters MUST be set correctly with respect each other and textToEncode
+// Please refer to the tables from Thonky's QR Tutorial to find appropriate values.
 const encodeVersion = 2;          // https://www.thonky.com/qr-code-tutorial/character-capacities
 const errorCorrectionLevel = "M"; // L (7%), M (15%), Q (25%), H (30%)
 const requiredBits = 28 * 8;      // "Data Codewords" https://www.thonky.com/qr-code-tutorial/error-correction-table
@@ -38,6 +71,55 @@ const modeIndicator = 0b0010; // Numeric Mode = 0b0001, Alphanumeric Mode = 0b00
 const charCountIndicator = Number(textToEncode.length)
   .toString(2)
   .padStart(encodeVersion <= 9 ? 9 : (encodeVersion <= 26 ? 11 : 13), 0)
+
+let random = [
+  bt.randIntInRange(1, maxRandomVersion), 
+  bt.randIntInRange(1, 20), 
+  12345, 
+  bt.randIntInRange(1, 8+2),
+  '#fc9003',
+  0,
+  1
+];
+
+// All Available Presets
+// Version (1-40), Stroke Width, Seed, Mask, Fill, Data to Use (0-2), Shapes
+const presets = [
+    random,
+    [encodeVersion, 0, 12345, qrMaskId, fillColor, 2, drawShapeMode], // Preset 1
+    [8, 1, 12345, 6, '#FFFFFF', 0, 0], // Preset 2
+    [1, 0, 12345, 5, undefined, 0, 0], // Preset 3
+    [7, 6, 6342, 3, '#3EFFA3', 1, 0], // Preset 4
+    [-1, 5, 1333, 5, '#3477eb', 0, 0], // Preset 5
+    [5, 20, 12345, 5, '#FF0000', 0, 0], // Preset 6
+]
+
+let strokeWidth = getPresets()[1];
+let version = getPresets()[0]
+let seed = getPresets()[2];
+
+let size = 4 * version + 17;
+const lines = [];
+
+setDocDimensions(width, height);
+
+if (PRESET == 0) { 
+  // console.log(presets[0]);
+} else {
+  bt.setRandSeed(seed);
+}
+
+if (bt.rand() < 0.20 && random[0] < 6) {random[4] = undefined}
+
+function getPresets() {
+  // Version (1-40), Stroke Width, Seed, Mask, Fill, Data to Use (0-2), Shapes
+  if (random[0] < random[1]) random[1] = bt.randIntInRange(1, random[1] / 2);
+
+  if (random[3] >= 8) random[5] = 1;
+
+  if (PRESET >= presets.length) return [-1, 0, 0, 0, '#000000'];
+  return presets[PRESET];
+}
 
 let encoded;// = encodeAlphanumeric(textToEncode);
 
@@ -189,55 +271,6 @@ function getRawDataString() {
   return dataString;
 }
 
-let random = [
-  bt.randIntInRange(1, maxRandomVersion), 
-  bt.randIntInRange(1, 20), 
-  12345, 
-  bt.randIntInRange(1, 8+2),
-  '#fc9003',
-  0,
-  1
-];
-
-// All Available Presets
-// Version (1-40), Stroke Width, Seed, Mask, Fill, Data to Use (0-2), Shapes
-const presets = [
-    random,
-    [encodeVersion, 0, 12345, qrMaskId, fillColor, 2, drawShapeMode], // Preset 1
-    [12, 1, 12345, 6, '#FFFFFF', 0, 0], // Preset 2
-    [1, 0, 12345, 5, undefined, 0, 0], // Preset 3
-    [7, 6, 6342, 3, '#3EFFA3', 1, 0], // Preset 4
-    [-1, 5, 1333, 5, '#3477eb', 0, 0], // Preset 5
-    [5, 20, 12345, 5, '#FF0000', 0, 0], // Preset 6
-]
-
-let strokeWidth = getPresets()[1];
-let version = getPresets()[0]
-let seed = getPresets()[2];
-
-let size = 4 * version + 17;
-const lines = [];
-
-setDocDimensions(width, height);
-
-if (PRESET == 0) { 
-  console.log(presets[0]);
-} else {
-  bt.setRandSeed(seed);
-}
-
-if (bt.rand() < 0.20 && random[0] < 6) {random[4] = undefined}
-
-function getPresets() {
-  // Version (1-40), Stroke Width, Seed, Mask, Fill, Data to Use (0-2), Shapes
-  if (random[0] < random[1]) random[1] = bt.randIntInRange(1, random[1] / 2);
-
-  if (random[3] >= 8) random[5] = 1;
-
-  if (PRESET >= presets.length) return [-1, 0, 0, 0, '#000000'];
-  return presets[PRESET];
-}
-
 // Draw a rectangle at x, y of width w and height h
 function rect(w, h, x = 0, y = 0) {
   return [
@@ -336,7 +369,7 @@ function generateQRCode(
         // Skip Vertical Timing Pattern
         if (ax < 7) {
           shift = 1
-        };
+        }
         
         if (ax % 4 == 0 + (shift * 3)) {
           // zigzag from bottom to top
@@ -363,8 +396,7 @@ function generateQRCode(
       // Check if we have enough positions
       if (targetIndex >= availablePositions.length) {
         console.error(`Target index ${targetIndex} exceeds the number of available modules.`)
-        return;  
-        // throw new Error("Target index exceeds the number of available modules.");
+        return;
       }
 
       // Set the data module at next available bit
@@ -474,10 +506,6 @@ function generateQRCode(
 
     // let formatString = errorCorrectionBits.padStart(2, "0") + maskPatternBits.padStart(3, "0") + "0".repeat(0);
     // const generatorPolynomial = 10100110111;
-
-    // const VERSION_DIVISOR = new Uint8Array([1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1]);
-    // const poly = Uint8Array.from(generatorPolynomial.toString(2).padStart(6, '0') + '000000000000');
-    // poly.set(polyRemainder(poly, VERSION_DIVISOR), 6);
 
     const formatStrings = [0b111011111000100, 0b111001011110011, 0b111110110101010, 0b111100010011101, 0b110011000101111, 0b110001100011000, 0b110110001000001, 0b110100101110110, 0b101010000010010, 0b101000100100101, 0b101111001111100, 0b101101101001011, 0b100010111111001, 0b100000011001110, 0b100111110010111, 0b100101010100000, 0b011010101011111, 0b011000001101000, 0b011111100110001, 0b011101000000110, 0b010010010110100, 0b010000110000011, 0b010111011011010, 0b010101111101101, 0b001011010001001, 0b001001110111110, 0b001110011100111, 0b001100111010000, 0b000011101100010, 0b000001001010101, 0b000110100001100, 0b000100000111011]	
     const formatIndex = "LMQH".indexOf(errorCorrectionLevel) * 8 + (maskId % 8);
@@ -599,7 +627,7 @@ function getPossibleAlignmentCoords(version) {
   );
 }
 
-console.log(`QR Version: ${version}`)
+// console.log(`QR Version: ${version}`)
 
 function randomArray(size = 21) {
   const array = [];
@@ -646,7 +674,7 @@ switch (Number(getPresets()[5])) {
 
 let finalQRArray = generateQRCode(version, baseArray);
 
-console.log(QR2Text(finalQRArray));
+// console.log(QR2Text(finalQRArray));
 
 function QR2Text(QRArray) {
   return QRArray.map(row => 
@@ -690,14 +718,6 @@ for(let y = 0; y < finalQRArray.length; y++) {
     if (val == 1) {
       // Full Square
       // renderSquare(x, y);
-      switch (Number(getPresets()[6])) {
-        // case 0:
-        //   renderRounded(x, y)
-        //   continue;
-        // case -1:
-        //   renderSquare(x, y)
-        //   continue;
-      }
       
       // if (dataVal == -2 && val == 1) {
         // renderSquare(x, y);
@@ -822,7 +842,7 @@ function renderSquare(x, y) {
   lines.push(a[0]);
 }
 
-// QR Quiet Zone
+// Create QR "Quiet Zone"
 bt.scale(lines, finalQRArray.length/(finalQRArray.length+8))
 
 drawLines(lines, {'fill': getPresets()[4], 'width': strokeWidth});
